@@ -1,10 +1,10 @@
 # ML Visualization Tool for Healthcare Professionals
 
 ## Overview
-[cite_start]The ML Visualization Tool helps doctors, nurses, and other healthcare professionals understand how artificial intelligence and machine learning work in real clinical settings[cite: 7]. [cite_start]The application runs entirely in the web browser, requiring no technical background, installation, or coding[cite: 5]. [cite_start]Users work through seven guided steps ranging from choosing a medical specialty to uploading patient data, training a model, and interpreting the results[cite: 8].
+The ML Visualization Tool helps doctors, nurses, and other healthcare professionals understand how artificial intelligence and machine learning work in real clinical settings. The application runs entirely in the web browser, requiring no technical background, installation, or coding. Users work through seven guided steps ranging from choosing a medical specialty to uploading patient data, training a model, and interpreting the results.
 
 ## Clinical Context
-[cite_start]The tool supports 20 clinical specialties[cite: 16]. [cite_start]The ML engine implements six model types: K-Nearest Neighbors, Support Vector Machine, Decision Tree, Random Forest, Logistic Regression, and Naive Bayes[cite: 78].
+The tool supports 20 clinical specialties. The ML engine implements six model types: K-Nearest Neighbors, Support Vector Machine, Decision Tree, Random Forest, Logistic Regression, and Naive Bayes.
 
 ## Tech Stack
 | Component | Technology | Purpose |
