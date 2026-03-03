@@ -16,6 +16,7 @@
 
 ## Repository Structure
 
+```
 health-ai-ml-learning-tool/
 ├── .github/
 │   └── workflows/              # CI/CD pipelines (Lighthouse, accessibility checks)
@@ -41,3 +42,5 @@ health-ai-ml-learning-tool/
 │   └── testing/                # Usability testing PDFs
 ├── README.md
 └── SETUP.md
+```
+
