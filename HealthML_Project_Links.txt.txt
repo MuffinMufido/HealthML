@@ -1,0 +1,11 @@
+Jira Board
+https://techmufido.atlassian.net/jira/software/projects/HCML/boards/37
+
+GitHub Repository
+https://github.com/MuffinMufido/HealthML
+
+Project Wiki
+https://github.com/MuffinMufido/HealthML.wiki
+
+Figma Wireframes 
+https://www.figma.com/community/file/1610750429482770416
