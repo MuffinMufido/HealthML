@@ -1,0 +1,945 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>HEALTH-AI · ML Learning Tool — All Model Visualizations</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --navy:     #0D2340;
+  --blue:     #1A6B9A;
+  --teal:     #0E9E8E;
+  --sky:      #E8F4FA;
+  --mint:     #E6F7F5;
+  --white:    #FFFFFF;
+  --offwhite: #F0F7FB;
+  --paper:    #F7F9FB;
+  --ink:      #0D1B2A;
+  --mid:      #4A6070;
+  --muted:    #7A92A3;
+  --line:     #DDE4EA;
+  --line2:    #C8D4DC;
+  --good:     #0D7A50;
+  --good-bg:  #E8F7F0;
+  --warn:     #A05C00;
+  --warn-bg:  #FEF3E2;
+  --bad:      #991B1B;
+  --bad-bg:   #FEF0F0;
+  --info:     #1A6B9A;
+  --info-bg:  #E8F4FA;
+  --shadow:   0 4px 18px rgba(13,35,64,.09);
+  --r: 14px;
+  --r2: 20px;
+  --sans: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  --mono: 'DM Mono', ui-monospace, monospace;
+  --serif: 'Fraunces', Georgia, serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);color:var(--ink);background:var(--paper);font-size:14px;line-height:1.5}
+
+/* ─── NAV ─────────────────────────────────────────────── */
+.nav{
+  background:var(--navy);position:sticky;top:0;z-index:100;
+  padding:0 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;
+  height:56px;box-shadow:0 2px 12px rgba(26,71,49,.25);
+}
+.nav-brand{display:flex;align-items:center;gap:12px}
+.nav-logo{
+  width:34px;height:34px;border-radius:10px;
+  background:linear-gradient(135deg,var(--teal),var(--blue));
+  display:grid;place-items:center;font-family:var(--serif);font-weight:600;font-size:16px;color:#fff;
+}
+.nav-title{font-size:15px;font-weight:600;color:#fff;letter-spacing:.01em}
+.nav-subtitle{font-size:12px;color:rgba(255,255,255,.55);margin-top:1px}
+.nav-btn{
+  padding:8px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);
+  background:rgba(255,255,255,.1);color:#fff;font-size:13px;font-weight:500;cursor:pointer;
+  transition:.15s;font-family:var(--sans);
+}
+.nav-btn:hover{background:rgba(255,255,255,.18)}
+
+/* ─── LAYOUT ──────────────────────────────────────────── */
+.wrap{max-width:1360px;margin:0 auto;padding:16px 20px 60px}
+.model-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:16px 0}
+.model-tab{
+  padding:10px 18px;border-radius:12px;border:2px solid var(--line2);
+  background:var(--white);font-size:13px;font-weight:600;color:var(--mid);
+  cursor:pointer;transition:.12s;position:relative;
+}
+.model-tab:hover{border-color:var(--teal);color:var(--teal)}
+.model-tab.active{background:var(--navy);border-color:var(--navy);color:#fff}
+
+/* ─── CARDS ───────────────────────────────────────────── */
+.card{
+  background:var(--white);border:1px solid var(--line);border-radius:var(--r2);
+  padding:20px;box-shadow:var(--shadow);margin-bottom:16px;
+}
+.card-title{
+  font-size:11px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.12em;margin-bottom:14px;
+}
+.cols{display:grid;grid-template-columns:400px 1fr;gap:16px;align-items:start}
+
+/* ─── SLIDERS ─────────────────────────────────────────── */
+label.lbl{display:block;font-size:12px;font-weight:600;color:var(--mid);margin:14px 0 6px;letter-spacing:.03em}
+.slider-row{display:flex;align-items:center;gap:12px;margin-top:4px}
+.slider-row input[type=range]{
+  flex:1;-webkit-appearance:none;height:6px;border-radius:999px;
+  background:var(--line);outline:none;cursor:pointer;
+}
+.slider-row input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:18px;height:18px;border-radius:999px;
+  background:var(--navy);border:2px solid var(--white);
+  box-shadow:0 2px 6px rgba(26,71,49,.25);cursor:pointer;
+}
+.slider-val{
+  min-width:42px;text-align:center;font-size:13px;font-weight:600;color:var(--navy);
+  background:var(--mint);border:1px solid var(--line2);border-radius:8px;padding:4px 8px;
+}
+.slider-ends{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:2px}
+.slider-hint{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.4}
+
+/* ─── CANVAS / VIZ ────────────────────────────────────── */
+.viz-canvas{
+  width:100%;height:280px;border-radius:14px;border:1px solid var(--line);
+  background:var(--offwhite);cursor:crosshair;
+}
+.viz-legend{display:flex;gap:14px;margin-top:10px;flex-wrap:wrap}
+.viz-legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--mid)}
+.s-dot{width:10px;height:10px;border-radius:999px;flex:0 0 auto}
+
+/* ─── TREE VIZ ────────────────────────────────────────── */
+.tree-svg{width:100%;height:320px;border-radius:14px;border:1px solid var(--line);background:var(--offwhite)}
+.tree-node{cursor:pointer;transition:.15s}
+.tree-node:hover .node-rect{stroke-width:2.5}
+.node-rect{fill:var(--white);stroke:var(--navy);stroke-width:1.5;rx:8}
+.node-text{font-family:var(--sans);font-size:11px;fill:var(--ink);font-weight:500}
+.node-label{font-size:10px;fill:var(--mid)}
+.tree-link{fill:none;stroke:var(--muted);stroke-width:1.5}
+
+/* ─── VOTING / BARS ───────────────────────────────────── */
+.vote-trees{display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;padding-bottom:8px}
+.mini-tree{
+  width:60px;height:80px;border-radius:10px;border:1px solid var(--line);
+  background:var(--white);display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:6px;flex:0 0 auto;
+}
+.mini-tree-icon{font-size:24px}
+.mini-tree-label{font-size:9px;font-weight:600;color:var(--mid)}
+.vote-bar{margin-top:10px}
+.vote-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.vote-label{width:100px;font-size:12px;color:var(--mid);font-weight:600}
+.vote-track{flex:1;height:28px;border-radius:999px;background:var(--line);overflow:hidden;position:relative}
+.vote-fill{height:100%;border-radius:999px;display:flex;align-items:center;padding:0 12px;
+  font-size:12px;font-weight:700;color:#fff;transition:.4s ease}
+.vote-fill.readmit{background:linear-gradient(90deg,var(--bad),#dc2626)}
+.vote-fill.safe{background:linear-gradient(90deg,var(--good),#22c55e)}
+.vote-count{width:70px;text-align:right;font-size:12px;font-weight:700;color:var(--mid)}
+
+/* ─── PROB BARS (Naive Bayes) ────────────────────────── */
+.prob-bars{display:grid;gap:12px}
+.prob-item{
+  border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--white);
+}
+.prob-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.prob-feature{font-size:12px;font-weight:600;color:var(--ink)}
+.prob-val{font-size:11px;color:var(--muted)}
+.prob-bar-wrap{height:10px;background:var(--line);border-radius:999px;overflow:hidden}
+.prob-bar-fill{height:100%;border-radius:999px;transition:.3s}
+.prob-bar-fill.increase{background:linear-gradient(90deg,var(--bad),#ef4444)}
+.prob-bar-fill.decrease{background:linear-gradient(90deg,var(--good),#16a34a)}
+.prob-impact{font-size:10px;color:var(--mid);margin-top:4px}
+
+/* ─── BANNER ──────────────────────────────────────────── */
+.banner{
+  border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.5;
+  display:flex;gap:10px;align-items:flex-start;margin-top:12px;
+}
+.banner-icon{font-size:16px;flex:0 0 auto;margin-top:1px}
+.banner.info{background:var(--info-bg);border:1px solid var(--teal);color:var(--info)}
+.banner.good{background:var(--good-bg);border:1px solid var(--good);color:var(--good)}
+.banner.warn{background:var(--warn-bg);border:1px solid var(--warn);color:var(--warn)}
+.banner b{font-weight:600}
+
+@media(max-width:900px){
+  .cols{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-brand">
+    <div class="nav-logo">H</div>
+    <div>
+      <div class="nav-title">HEALTH-AI · ML Learning Tool</div>
+      <div class="nav-subtitle">All Model Visualizations — Step 4 Demo</div>
+    </div>
+  </div>
+  <div>
+    <button class="nav-btn">? Help</button>
+  </div>
+</nav>
+
+<div class="wrap">
+  <h1 style="font-family:var(--serif);font-size:28px;color:var(--navy);margin-bottom:8px;">Step 4 — Model Visualizations</h1>
+  <p style="font-size:14px;color:var(--mid);margin-bottom:20px;">Click each model tab to see its unique visualization. Adjust parameters to watch the visualization update in real-time.</p>
+
+  <!-- MODEL TABS -->
+  <div class="model-tabs" id="modelTabs">
+    <div class="model-tab active" data-model="knn">K-Nearest Neighbors</div>
+    <div class="model-tab" data-model="svm">Support Vector Machine</div>
+    <div class="model-tab" data-model="dt">Decision Tree</div>
+    <div class="model-tab" data-model="rf">Random Forest</div>
+    <div class="model-tab" data-model="lr">Logistic Regression</div>
+    <div class="model-tab" data-model="nb">Naïve Bayes</div>
+  </div>
+
+  <div class="cols">
+    <!-- LEFT PANEL: PARAMETERS -->
+    <div>
+      <!-- KNN PARAMS -->
+      <div class="card" id="params-knn">
+        <div class="card-title">KNN Parameters</div>
+        <label class="lbl">K — Number of Neighbors to Compare</label>
+        <div class="slider-row">
+          <input type="range" min="1" max="25" step="1" value="5" id="knnK"/>
+          <div class="slider-val" id="knnKVal">5</div>
+        </div>
+        <div class="slider-ends"><span>1 (very specific)</span><span>25 (very general)</span></div>
+        <div class="slider-hint">Low K = focuses on very similar cases (can be noisy). High K = considers many patients (may miss details).</div>
+      </div>
+
+      <!-- SVM PARAMS -->
+      <div class="card" id="params-svm" style="display:none;">
+        <div class="card-title">SVM Parameters</div>
+        <label class="lbl">C — Strictness of Boundary</label>
+        <div class="slider-row">
+          <input type="range" min="1" max="10" step="1" value="5" id="svmC"/>
+          <div class="slider-val" id="svmCVal">1.0</div>
+        </div>
+        <div class="slider-ends"><span>0.1 (loose)</span><span>10 (strict)</span></div>
+        <div class="slider-hint">High C = tries harder to classify every training patient correctly. Risk: memorising rather than learning.</div>
+        <label class="lbl">Kernel Type</label>
+        <select id="svmKernel" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--white);font-family:var(--sans);font-size:13px;">
+          <option value="rbf">RBF — Radial (curved boundary)</option>
+          <option value="linear">Linear (straight line)</option>
+        </select>
+      </div>
+
+      <!-- DT PARAMS -->
+      <div class="card" id="params-dt" style="display:none;">
+        <div class="card-title">Decision Tree Parameters</div>
+        <label class="lbl">Maximum Depth — How Many Questions</label>
+        <div class="slider-row">
+          <input type="range" min="1" max="5" step="1" value="3" id="dtDepth"/>
+          <div class="slider-val" id="dtDepthVal">3</div>
+        </div>
+        <div class="slider-ends"><span>1 (very simple)</span><span>5 (detailed)</span></div>
+        <div class="slider-hint">Deeper trees ask more questions. Too deep = memorises training patients and fails on new ones.</div>
+      </div>
+
+      <!-- RF PARAMS -->
+      <div class="card" id="params-rf" style="display:none;">
+        <div class="card-title">Random Forest Parameters</div>
+        <label class="lbl">Number of Trees</label>
+        <div class="slider-row">
+          <input type="range" min="10" max="200" step="10" value="100" id="rfTrees"/>
+          <div class="slider-val" id="rfTreesVal">100</div>
+        </div>
+        <div class="slider-ends"><span>10 (fast)</span><span>200 (stable)</span></div>
+        <div class="slider-hint">More trees = more stable predictions. Each tree votes — the majority vote wins.</div>
+      </div>
+
+      <!-- LR PARAMS -->
+      <div class="card" id="params-lr" style="display:none;">
+        <div class="card-title">Logistic Regression Parameters</div>
+        <label class="lbl">C — Regularisation Strength</label>
+        <div class="slider-row">
+          <input type="range" min="1" max="10" step="1" value="5" id="lrC"/>
+          <div class="slider-val" id="lrCVal">1.0</div>
+        </div>
+        <div class="slider-ends"><span>Strong (simple)</span><span>Weak (complex)</span></div>
+        <div class="slider-hint">Higher regularisation prevents the model from relying too heavily on any single measurement.</div>
+      </div>
+
+      <!-- NB PARAMS -->
+      <div class="card" id="params-nb" style="display:none;">
+        <div class="card-title">Naïve Bayes Parameters</div>
+        <div class="banner info">
+          <div class="banner-icon">ℹ️</div>
+          <div><b>Naïve Bayes</b> has very few parameters. It calculates the probability of readmission from each measurement independently. Fast and effective with small datasets.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL: VISUALIZATIONS -->
+    <div>
+      <!-- KNN VIZ -->
+      <div class="card" id="viz-knn">
+        <div class="card-title">KNN — How It Finds Similar Patients</div>
+        <p style="font-size:12px;color:var(--mid);margin-bottom:10px;">Each dot is a past patient (2D projection: Ejection Fraction vs. Age). The ★ is a new patient. The <span style="color:var(--teal);font-weight:600;">green circle</span> shows the <span id="knnKVizLabel">5</span> nearest neighbors.</p>
+        <canvas id="knnCanvas" class="viz-canvas"></canvas>
+        <div class="viz-legend">
+          <div class="viz-legend-item"><div class="s-dot" style="background:#dc2626"></div> Readmitted</div>
+          <div class="viz-legend-item"><div class="s-dot" style="background:#16a34a"></div> Not Readmitted</div>
+          <div class="viz-legend-item"><div class="s-dot" style="background:var(--navy);width:14px;height:14px;clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)"></div> New Patient</div>
+          <div class="viz-legend-item"><div style="width:20px;height:2px;background:var(--teal);border-radius:999px;"></div> K-radius</div>
+        </div>
+        <div class="banner good">
+          <div class="banner-icon">✅</div>
+          <div><b>Clinical meaning:</b> Of the 5 most similar patients (by age and heart function), 3 were readmitted and 2 were not. The model predicts: readmit (60% confidence).</div>
+        </div>
+      </div>
+
+      <!-- SVM VIZ -->
+      <div class="card" id="viz-svm" style="display:none;">
+        <div class="card-title">SVM — Decision Boundary & Support Vectors</div>
+        <p style="font-size:12px;color:var(--mid);margin-bottom:10px;">SVM draws the widest possible boundary between readmitted (red) and safe (green) patients. The <b>support vectors</b> (outlined circles) are the most critical cases that define the boundary.</p>
+        <canvas id="svmCanvas" class="viz-canvas"></canvas>
+        <div class="viz-legend">
+          <div class="viz-legend-item"><div class="s-dot" style="background:#dc2626"></div> Readmitted</div>
+          <div class="viz-legend-item"><div class="s-dot" style="background:#16a34a"></div> Not Readmitted</div>
+          <div class="viz-legend-item"><div class="s-dot" style="border:3px solid var(--navy);background:transparent;width:14px;height:14px;"></div> Support Vector</div>
+          <div class="viz-legend-item"><div style="width:30px;height:2px;background:var(--navy);border-radius:2px;"></div> Decision Boundary</div>
+          <div class="viz-legend-item"><div style="width:30px;height:2px;border-top:2px dashed var(--muted);"></div> Margin</div>
+        </div>
+        <div class="banner good">
+          <div class="banner-icon">✅</div>
+          <div><b>Clinical meaning:</b> The boundary is the "line of uncertainty." Patients far from the line are easy to classify. Patients near the line (support vectors) are the difficult cases that required the most attention during training.</div>
+        </div>
+      </div>
+
+      <!-- DT VIZ -->
+      <div class="card" id="viz-dt" style="display:none;">
+        <div class="card-title">Decision Tree — Clinical Decision Flowchart</div>
+        <p style="font-size:12px;color:var(--mid);margin-bottom:10px;">The tree asks yes/no questions about patient measurements. Follow the path from top to bottom to reach a final decision. Hover over nodes to see details.</p>
+        <svg id="dtSvg" class="tree-svg"></svg>
+        <div class="banner good">
+          <div class="banner-icon">✅</div>
+          <div><b>Clinical meaning:</b> This looks like a clinical guideline flowchart. The first question (Ejection Fraction < 38%) is the most important split — the model identified this as the strongest predictor.</div>
+        </div>
+      </div>
+
+      <!-- RF VIZ -->
+      <div class="card" id="viz-rf" style="display:none;">
+        <div class="card-title">Random Forest — Many Trees Vote</div>
+        <p style="font-size:12px;color:var(--mid);margin-bottom:10px;">Each mini-tree represents one decision tree trained on a random sample of patients. All <span id="rfTreeCount">100</span> trees vote, and the majority wins.</p>
+        <div class="vote-trees" id="voteTrees">
+          <!-- Generated by JS -->
+        </div>
+        <div class="vote-bar">
+          <div class="vote-row">
+            <div class="vote-label">🔴 Readmit</div>
+            <div class="vote-track">
+              <div class="vote-fill readmit" id="voteReadmit" style="width:68%">68 trees</div>
+            </div>
+            <div class="vote-count" id="voteReadmitCount">68%</div>
+          </div>
+          <div class="vote-row">
+            <div class="vote-label">🟢 Safe</div>
+            <div class="vote-track">
+              <div class="vote-fill safe" id="voteSafe" style="width:32%">32 trees</div>
+            </div>
+            <div class="vote-count" id="voteSafeCount">32%</div>
+          </div>
+        </div>
+        <div class="banner good">
+          <div class="banner-icon">✅</div>
+          <div><b>Clinical meaning:</b> 68 out of 100 trees predict readmission. Final prediction: READMIT (68% confidence). This is like getting 100 second opinions — more stable than a single tree.</div>
+        </div>
+      </div>
+
+      <!-- LR VIZ -->
+      <div class="card" id="viz-lr" style="display:none;">
+        <div class="card-title">Logistic Regression — Probability S-Curve</div>
+        <p style="font-size:12px;color:var(--mid);margin-bottom:10px;">This curve shows how readmission probability changes as Ejection Fraction drops. The red dot shows your patient's position on the curve.</p>
+        <canvas id="lrCanvas" class="viz-canvas" style="height:260px;"></canvas>
+        <div class="banner good">
+          <div class="banner-icon">✅</div>
+          <div><b>Clinical meaning:</b> Patient with EF=38% sits at the steep part of the curve — small changes in heart function cause large swings in risk. This is the "tipping point" where intervention matters most.</div>
+        </div>
+      </div>
+
+      <!-- NB VIZ -->
+      <div class="card" id="viz-nb" style="display:none;">
+        <div class="card-title">Naïve Bayes — How Each Feature Affects Risk</div>
+        <p style="font-size:12px;color:var(--mid);margin-bottom:10px;">Starting from the base rate (33% readmit), each measurement either increases (red) or decreases (green) the probability independently.</p>
+        <div class="prob-bars">
+          <div class="prob-item">
+            <div class="prob-header">
+              <span class="prob-feature">Ejection Fraction = 20% (very low)</span>
+              <span class="prob-val">P = 78%</span>
+            </div>
+            <div class="prob-bar-wrap"><div class="prob-bar-fill increase" style="width:78%"></div></div>
+            <div class="prob-impact">INCREASES risk by +45%</div>
+          </div>
+          <div class="prob-item">
+            <div class="prob-header">
+              <span class="prob-feature">Age = 71 years (elderly)</span>
+              <span class="prob-val">P = 54%</span>
+            </div>
+            <div class="prob-bar-wrap"><div class="prob-bar-fill increase" style="width:54%"></div></div>
+            <div class="prob-impact">INCREASES risk by +21%</div>
+          </div>
+          <div class="prob-item">
+            <div class="prob-header">
+              <span class="prob-feature">Serum Creatinine = 1.3 (normal)</span>
+              <span class="prob-val">P = 35%</span>
+            </div>
+            <div class="prob-bar-wrap"><div class="prob-bar-fill increase" style="width:35%"></div></div>
+            <div class="prob-impact">Slight increase by +2%</div>
+          </div>
+          <div class="prob-item">
+            <div class="prob-header">
+              <span class="prob-feature">Non-smoker</span>
+              <span class="prob-val">P = 28%</span>
+            </div>
+            <div class="prob-bar-wrap"><div class="prob-bar-fill decrease" style="width:28%"></div></div>
+            <div class="prob-impact">DECREASES risk by -5%</div>
+          </div>
+          <div style="margin-top:12px;padding:12px;background:var(--mint);border-radius:12px;border:1px solid var(--teal);">
+            <div style="font-size:13px;font-weight:600;color:var(--info);">Final combined probability: 68% readmit</div>
+          </div>
+        </div>
+        <div class="banner good">
+          <div class="banner-icon">✅</div>
+          <div><b>Clinical meaning:</b> The model treats each measurement independently ('naïve' assumption). In reality, age and kidney function are related, but this simple approach often works well in practice.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── TAB SWITCHING ────────────────────────────────────────────────
+const tabs = document.querySelectorAll('.model-tab');
+const paramPanels = {
+  knn: document.getElementById('params-knn'),
+  svm: document.getElementById('params-svm'),
+  dt: document.getElementById('params-dt'),
+  rf: document.getElementById('params-rf'),
+  lr: document.getElementById('params-lr'),
+  nb: document.getElementById('params-nb'),
+};
+const vizPanels = {
+  knn: document.getElementById('viz-knn'),
+  svm: document.getElementById('viz-svm'),
+  dt: document.getElementById('viz-dt'),
+  rf: document.getElementById('viz-rf'),
+  lr: document.getElementById('viz-lr'),
+  nb: document.getElementById('viz-nb'),
+};
+
+function showModel(model) {
+  tabs.forEach(t => t.classList.toggle('active', t.dataset.model === model));
+  Object.values(paramPanels).forEach(p => p.style.display = 'none');
+  Object.values(vizPanels).forEach(v => v.style.display = 'none');
+  if (paramPanels[model]) paramPanels[model].style.display = 'block';
+  if (vizPanels[model]) vizPanels[model].style.display = 'block';
+  
+  // Trigger redraw
+  if (model === 'knn') drawKNN();
+  if (model === 'svm') drawSVM();
+  if (model === 'dt') drawDecisionTree();
+  if (model === 'rf') drawRandomForest();
+  if (model === 'lr') drawLogisticRegression();
+}
+
+tabs.forEach(tab => tab.addEventListener('click', () => showModel(tab.dataset.model)));
+
+// ─── SLIDER HELPERS ───────────────────────────────────────────────
+function wireSlider(sliderId, valId, transform, onChange) {
+  const s = document.getElementById(sliderId);
+  const v = document.getElementById(valId);
+  if (!s || !v) return;
+  s.addEventListener('input', () => {
+    v.textContent = transform ? transform(s.value) : s.value;
+    if (onChange) onChange(s.value);
+  });
+}
+
+// ─── KNN VISUALIZATION ────────────────────────────────────────────
+wireSlider('knnK', 'knnKVal', v => v, v => {
+  document.getElementById('knnKVizLabel').textContent = v;
+  drawKNN();
+});
+
+function drawKNN() {
+  const canvas = document.getElementById('knnCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = canvas.offsetWidth * dpr;
+  canvas.height = canvas.offsetHeight * dpr;
+  ctx.scale(dpr, dpr);
+  const w = canvas.offsetWidth, h = canvas.offsetHeight;
+  ctx.clearRect(0, 0, w, h);
+
+  const k = Number(document.getElementById('knnK').value);
+  
+  // Generate synthetic patient data (EF% vs Age)
+  const pts = [
+    [0.2,0.3,0],[0.25,0.55,0],[0.15,0.65,1],[0.3,0.75,1],[0.4,0.4,0],
+    [0.5,0.25,0],[0.45,0.6,1],[0.55,0.7,1],[0.65,0.45,0],[0.7,0.6,1],
+    [0.75,0.3,0],[0.8,0.65,1],[0.35,0.2,0],[0.6,0.8,1],[0.85,0.4,0],
+    [0.1,0.45,1],[0.9,0.7,1],[0.6,0.15,0],[0.28,0.42,0],[0.52,0.48,1],
+  ];
+  const newPt = [0.48, 0.52]; // EF=38%, Age=52
+
+  // Calculate distances
+  const dists = pts.map(([px,py,c], i) => ({
+    i, dist: Math.hypot(px-newPt[0], py-newPt[1]), c
+  }));
+  dists.sort((a,b) => a.dist - b.dist);
+  const neighbors = new Set(dists.slice(0,k).map(d=>d.i));
+  const kRadius = dists[k-1].dist;
+
+  // Draw K-radius circle
+  ctx.beginPath();
+  ctx.arc(newPt[0]*w, newPt[1]*h, kRadius*Math.min(w,h), 0, Math.PI*2);
+  ctx.strokeStyle = 'rgba(22,163,74,0.5)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6,4]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(22,163,74,0.05)';
+  ctx.fill();
+
+  // Draw connecting lines to neighbors
+  pts.forEach(([px,py,c], i) => {
+    if (neighbors.has(i)) {
+      ctx.beginPath();
+      ctx.moveTo(px*w, py*h);
+      ctx.lineTo(newPt[0]*w, newPt[1]*h);
+      ctx.strokeStyle = 'rgba(22,163,74,0.25)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  });
+
+  // Draw points
+  pts.forEach(([px,py,c], i) => {
+    ctx.beginPath();
+    ctx.arc(px*w, py*h, neighbors.has(i) ? 7 : 5, 0, Math.PI*2);
+    ctx.fillStyle = c===1 ? (neighbors.has(i) ? '#dc2626' : 'rgba(220,38,38,0.4)') :
+                            (neighbors.has(i) ? '#16a34a' : 'rgba(22,163,74,0.4)');
+    ctx.fill();
+    if (neighbors.has(i)) {
+      ctx.strokeStyle = c===1 ? '#991b1b' : '#166534';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  });
+
+  // Draw new patient star
+  const sx = newPt[0]*w, sy = newPt[1]*h, sr = 11;
+  ctx.fillStyle = '#0D2340';
+  ctx.beginPath();
+  for (let i=0; i<5; i++) {
+    const a = (i*4*Math.PI/5) - Math.PI/2;
+    const b = (i*4*Math.PI/5 + 2*Math.PI/5) - Math.PI/2;
+    if (i===0) ctx.moveTo(sx + sr*Math.cos(a), sy + sr*Math.sin(a));
+    else ctx.lineTo(sx + sr*Math.cos(a), sy + sr*Math.sin(a));
+    ctx.lineTo(sx + sr*0.4*Math.cos(b), sy + sr*0.4*Math.sin(b));
+  }
+  ctx.closePath();
+  ctx.fill();
+  
+  // Axis labels
+  ctx.fillStyle = '#6B9A7A';
+  ctx.font = '10px DM Sans';
+  ctx.fillText('Low EF%', 10, h-10);
+  ctx.fillText('High EF%', w-60, h-10);
+  ctx.fillText('Young', 10, 20);
+  ctx.fillText('Old', 10, h-50);
+}
+
+// ─── SVM VISUALIZATION ────────────────────────────────────────────
+wireSlider('svmC', 'svmCVal', v => (Math.pow(10, (v-5)/2)).toFixed(1), () => drawSVM());
+document.getElementById('svmKernel').addEventListener('change', drawSVM);
+
+function drawSVM() {
+  const canvas = document.getElementById('svmCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = canvas.offsetWidth * dpr;
+  canvas.height = canvas.offsetHeight * dpr;
+  ctx.scale(dpr, dpr);
+  const w = canvas.offsetWidth, h = canvas.offsetHeight;
+  ctx.clearRect(0, 0, w, h);
+
+  const kernel = document.getElementById('svmKernel').value;
+  const C = Number(document.getElementById('svmC').value);
+  
+  // Synthetic data
+  const redPts = [[0.2,0.7],[0.25,0.75],[0.3,0.8],[0.15,0.65],[0.35,0.85],[0.28,0.72]];
+  const greenPts = [[0.7,0.3],[0.75,0.25],[0.8,0.35],[0.65,0.2],[0.85,0.4],[0.72,0.28]];
+  
+  // Support vectors (closest to boundary)
+  const svRed = [0,3];
+  const svGreen = [1,3];
+
+  // Draw margin area (simplified)
+  ctx.fillStyle = 'rgba(163,201,179,0.12)';
+  if (kernel === 'linear') {
+    ctx.fillRect(w*0.35, 0, w*0.25, h);
+  } else {
+    ctx.beginPath();
+    ctx.ellipse(w*0.5, h*0.5, w*0.28, h*0.28, Math.PI/4, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // Draw dashed margin lines
+  ctx.setLineDash([5,3]);
+  ctx.strokeStyle = '#6B9A7A';
+  ctx.lineWidth = 1.5;
+  if (kernel === 'linear') {
+    ctx.beginPath();
+    ctx.moveTo(w*0.38, 0);
+    ctx.lineTo(w*0.38, h);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(w*0.58, 0);
+    ctx.lineTo(w*0.58, h);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // Draw decision boundary
+  ctx.strokeStyle = '#0D2340';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  if (kernel === 'linear') {
+    ctx.moveTo(w*0.48, 0);
+    ctx.lineTo(w*0.48, h);
+  } else {
+    ctx.ellipse(w*0.5, h*0.5, w*0.22, h*0.22, Math.PI/4, 0, Math.PI*2);
+  }
+  ctx.stroke();
+
+  // Draw points
+  redPts.forEach(([x,y],i) => {
+    ctx.beginPath();
+    ctx.arc(x*w, y*h, svRed.includes(i) ? 8 : 6, 0, Math.PI*2);
+    ctx.fillStyle = '#dc2626';
+    ctx.fill();
+    if (svRed.includes(i)) {
+      ctx.strokeStyle = '#0D2340';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+    }
+  });
+  greenPts.forEach(([x,y],i) => {
+    ctx.beginPath();
+    ctx.arc(x*w, y*h, svGreen.includes(i) ? 8 : 6, 0, Math.PI*2);
+    ctx.fillStyle = '#16a34a';
+    ctx.fill();
+    if (svGreen.includes(i)) {
+      ctx.strokeStyle = '#0D2340';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+    }
+  });
+  
+  // Labels
+  ctx.fillStyle = '#6B9A7A';
+  ctx.font = '10px DM Sans';
+  ctx.fillText('Low EF%', 10, h-10);
+  ctx.fillText('High EF%', w-60, h-10);
+}
+
+// ─── DECISION TREE VISUALIZATION ──────────────────────────────────
+wireSlider('dtDepth', 'dtDepthVal', v => v, () => drawDecisionTree());
+
+function drawDecisionTree() {
+  const svg = document.getElementById('dtSvg');
+  if (!svg) return;
+  const depth = Number(document.getElementById('dtDepth').value);
+  
+  // Clear
+  svg.innerHTML = '';
+  const w = svg.clientWidth, h = svg.clientHeight;
+  
+  // Tree data (simplified)
+  const trees = {
+    1: [{x:w/2,y:40,label:'EF < 38%?',left:'READMIT\n82%',right:'SAFE\n91%',leftColor:'#dc2626',rightColor:'#16a34a'}],
+    2: [
+      {x:w/2,y:40,label:'EF < 38%?',isQ:true},
+      {x:w/4,y:120,label:'Age > 65?',isQ:true},
+      {x:3*w/4,y:120,label:'Creatinine > 1.5?',isQ:true},
+      {x:w/8,y:200,label:'READMIT\n94%',color:'#dc2626'},
+      {x:3*w/8,y:200,label:'SAFE\n68%',color:'#16a34a'},
+      {x:5*w/8,y:200,label:'READMIT\n72%',color:'#dc2626'},
+      {x:7*w/8,y:200,label:'SAFE\n96%',color:'#16a34a'},
+    ],
+    3: [
+      {x:w/2,y:30,label:'EF < 38%?',isQ:true},
+      {x:w/4,y:100,label:'Age > 65?',isQ:true},
+      {x:3*w/4,y:100,label:'Creatinine > 1.5?',isQ:true},
+      {x:w/8,y:170,label:'Smoker?',isQ:true},
+      {x:3*w/8,y:170,label:'Sodium < 135?',isQ:true},
+      {x:5*w/8,y:170,label:'READMIT\n72%',color:'#dc2626'},
+      {x:7*w/8,y:170,label:'SAFE\n96%',color:'#16a34a'},
+      {x:w/16,y:240,label:'READMIT\n97%',color:'#dc2626'},
+      {x:3*w/16,y:240,label:'READMIT\n88%',color:'#dc2626'},
+      {x:5*w/16,y:240,label:'READMIT\n78%',color:'#dc2626'},
+      {x:7*w/16,y:240,label:'SAFE\n65%',color:'#16a34a'},
+    ],
+    4: [
+      {x:w/2,y:25,label:'EF < 38%?',isQ:true},
+      {x:w/4,y:85,label:'Age > 65?',isQ:true},
+      {x:3*w/4,y:85,label:'Creatinine > 1.5?',isQ:true},
+      {x:w/8,y:145,label:'Smoker?',isQ:true},
+      {x:3*w/8,y:145,label:'Sodium < 135?',isQ:true},
+      {x:5*w/8,y:145,label:'READMIT\n72%',color:'#dc2626'},
+      {x:7*w/8,y:145,label:'SAFE\n96%',color:'#16a34a'},
+      {x:w/16,y:205,label:'BP > 140?',isQ:true},
+      {x:3*w/16,y:205,label:'READMIT\n88%',color:'#dc2626'},
+      {x:5*w/16,y:205,label:'Time > 4d?',isQ:true},
+      {x:7*w/16,y:205,label:'SAFE\n65%',color:'#16a34a'},
+      {x:w/32,y:265,label:'READMIT\n99%',color:'#dc2626'},
+      {x:3*w/32,y:265,label:'READMIT\n94%',color:'#dc2626'},
+      {x:9*w/32,y:265,label:'READMIT\n85%',color:'#dc2626'},
+      {x:11*w/32,y:265,label:'SAFE\n71%',color:'#16a34a'},
+    ],
+    5: [
+      {x:w/2,y:20,label:'EF < 38%?',isQ:true},
+      {x:w/4,y:70,label:'Age > 65?',isQ:true},
+      {x:3*w/4,y:70,label:'Creatinine > 1.5?',isQ:true},
+      {x:w/8,y:120,label:'Smoker?',isQ:true},
+      {x:3*w/8,y:120,label:'Sodium < 135?',isQ:true},
+      {x:5*w/8,y:120,label:'READMIT\n72%',color:'#dc2626'},
+      {x:7*w/8,y:120,label:'SAFE\n96%',color:'#16a34a'},
+      {x:w/16,y:170,label:'BP > 140?',isQ:true},
+      {x:3*w/16,y:170,label:'Diabetes?',isQ:true},
+      {x:5*w/16,y:170,label:'Time > 4d?',isQ:true},
+      {x:7*w/16,y:170,label:'SAFE\n65%',color:'#16a34a'},
+      {x:w/32,y:220,label:'Anemia?',isQ:true},
+      {x:3*w/32,y:220,label:'READMIT\n94%',color:'#dc2626'},
+      {x:5*w/32,y:220,label:'READMIT\n91%',color:'#dc2626'},
+      {x:7*w/32,y:220,label:'SAFE\n68%',color:'#16a34a'},
+      {x:9*w/32,y:220,label:'READMIT\n85%',color:'#dc2626'},
+      {x:11*w/32,y:220,label:'SAFE\n71%',color:'#16a34a'},
+      {x:w/64,y:270,label:'READMIT\n99%',color:'#dc2626'},
+      {x:3*w/64,y:270,label:'READMIT\n96%',color:'#dc2626'},
+    ]
+  };
+  
+  const nodes = trees[Math.min(depth,5)] || trees[3];
+  
+  // Draw edges
+  const g1 = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  for (let i=0; i<nodes.length; i++) {
+    const leftChild = 2*i+1, rightChild = 2*i+2;
+    if (leftChild < nodes.length) {
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('class', 'tree-link');
+      path.setAttribute('d', `M${nodes[i].x},${nodes[i].y+25} L${nodes[leftChild].x},${nodes[leftChild].y-25}`);
+      g1.appendChild(path);
+    }
+    if (rightChild < nodes.length) {
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('class', 'tree-link');
+      path.setAttribute('d', `M${nodes[i].x},${nodes[i].y+25} L${nodes[rightChild].x},${nodes[rightChild].y-25}`);
+      g1.appendChild(path);
+    }
+  }
+  svg.appendChild(g1);
+  
+  // Draw nodes
+  const g2 = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  nodes.forEach(n => {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'tree-node');
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('class', 'node-rect');
+    rect.setAttribute('x', n.x - 50);
+    rect.setAttribute('y', n.y - 20);
+    rect.setAttribute('width', 100);
+    rect.setAttribute('height', 40);
+    if (n.color) rect.setAttribute('fill', n.color);
+    g.appendChild(rect);
+    
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('class', 'node-text');
+    text.setAttribute('x', n.x);
+    text.setAttribute('y', n.y);
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('dominant-baseline', 'middle');
+    text.setAttribute('fill', n.color ? '#fff' : '#0D1F15');
+    text.textContent = n.label.split('\n')[0];
+    g.appendChild(text);
+    
+    if (n.label.includes('\n')) {
+      const text2 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text2.setAttribute('class', 'node-label');
+      text2.setAttribute('x', n.x);
+      text2.setAttribute('y', n.y + 12);
+      text2.setAttribute('text-anchor', 'middle');
+      text2.setAttribute('fill', n.color ? 'rgba(255,255,255,0.8)' : '#6B9A7A');
+      text2.textContent = n.label.split('\n')[1];
+      g.appendChild(text2);
+    }
+    g2.appendChild(g);
+  });
+  svg.appendChild(g2);
+}
+
+// ─── RANDOM FOREST VISUALIZATION ──────────────────────────────────
+wireSlider('rfTrees', 'rfTreesVal', v => v, v => {
+  document.getElementById('rfTreeCount').textContent = v;
+  drawRandomForest();
+});
+
+function drawRandomForest() {
+  const container = document.getElementById('voteTrees');
+  const n = Number(document.getElementById('rfTrees').value);
+  const showTrees = Math.min(n, 12); // Show max 12 visual trees
+  container.innerHTML = '';
+  
+  // Simulate votes (68% readmit in this example)
+  const readmitVotes = Math.round(n * 0.68);
+  const safeVotes = n - readmitVotes;
+  
+  for (let i=0; i<showTrees; i++) {
+    const vote = i < Math.round(showTrees * 0.68) ? 'readmit' : 'safe';
+    const div = document.createElement('div');
+    div.className = 'mini-tree';
+    div.innerHTML = `
+      <div class="mini-tree-icon">${vote === 'readmit' ? '🔴' : '🟢'}</div>
+      <div class="mini-tree-label">Tree ${i+1}</div>
+    `;
+    container.appendChild(div);
+  }
+  
+  // Update vote bars
+  const readmitPct = (readmitVotes / n * 100).toFixed(0);
+  const safePct = (safeVotes / n * 100).toFixed(0);
+  
+  document.getElementById('voteReadmit').style.width = readmitPct + '%';
+  document.getElementById('voteReadmit').textContent = `${readmitVotes} trees`;
+  document.getElementById('voteReadmitCount').textContent = readmitPct + '%';
+  
+  document.getElementById('voteSafe').style.width = safePct + '%';
+  document.getElementById('voteSafe').textContent = `${safeVotes} trees`;
+  document.getElementById('voteSafeCount').textContent = safePct + '%';
+}
+
+// ─── LOGISTIC REGRESSION VISUALIZATION ────────────────────────────
+wireSlider('lrC', 'lrCVal', v => (Math.pow(10, (v-5)/2)).toFixed(1), () => drawLogisticRegression());
+
+function drawLogisticRegression() {
+  const canvas = document.getElementById('lrCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = canvas.offsetWidth * dpr;
+  canvas.height = canvas.offsetHeight * dpr;
+  ctx.scale(dpr, dpr);
+  const w = canvas.offsetWidth, h = canvas.offsetHeight;
+  ctx.clearRect(0, 0, w, h);
+
+  const C = Number(document.getElementById('lrC').value);
+  const margin = 50, plotW = w - margin*2, plotH = h - margin*2;
+  
+  // Sigmoid function: P(readmit) = 1 / (1 + exp(-k*(x - x0)))
+  // where k controls steepness (affected by C), x0 is midpoint
+  const k = C * 0.15; // Higher C = steeper curve
+  const x0 = 38; // Midpoint at EF=38%
+  
+  function sigmoid(ef) {
+    return 1 / (1 + Math.exp(-k * (x0 - ef)));
+  }
+  
+  // Draw axes
+  ctx.strokeStyle = '#BBD9C8';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(margin, margin);
+  ctx.lineTo(margin, h - margin);
+  ctx.lineTo(w - margin, h - margin);
+  ctx.stroke();
+  
+  // Y-axis labels
+  ctx.fillStyle = '#6B9A7A';
+  ctx.font = '11px DM Sans';
+  ctx.textAlign = 'right';
+  ctx.fillText('100%', margin - 8, margin + 5);
+  ctx.fillText('50%', margin - 8, margin + plotH/2 + 5);
+  ctx.fillText('0%', margin - 8, h - margin + 5);
+  
+  // X-axis labels
+  ctx.textAlign = 'center';
+  ctx.fillText('14%', margin, h - margin + 20);
+  ctx.fillText('38%', margin + plotW/2, h - margin + 20);
+  ctx.fillText('80%', w - margin, h - margin + 20);
+  ctx.fillText('Ejection Fraction (%)', w/2, h - 10);
+  
+  // Y-axis label
+  ctx.save();
+  ctx.translate(15, h/2);
+  ctx.rotate(-Math.PI/2);
+  ctx.textAlign = 'center';
+  ctx.fillText('P(Readmission)', 0, 0);
+  ctx.restore();
+  
+  // Draw 50% threshold line
+  ctx.strokeStyle = 'rgba(107,154,122,0.3)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4,4]);
+  ctx.beginPath();
+  ctx.moveTo(margin, margin + plotH/2);
+  ctx.lineTo(w - margin, margin + plotH/2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  
+  // Draw S-curve
+  ctx.strokeStyle = '#0D2340';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  for (let i = 0; i <= 100; i++) {
+    const ef = 14 + (80 - 14) * (i / 100);
+    const prob = sigmoid(ef);
+    const x = margin + (i / 100) * plotW;
+    const y = margin + plotH * (1 - prob);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  
+  // Draw current patient point (EF=38%)
+  const patientEF = 38;
+  const patientProb = sigmoid(patientEF);
+  const px = margin + ((patientEF - 14) / (80 - 14)) * plotW;
+  const py = margin + plotH * (1 - patientProb);
+  
+  ctx.beginPath();
+  ctx.arc(px, py, 8, 0, Math.PI * 2);
+  ctx.fillStyle = '#dc2626';
+  ctx.fill();
+  ctx.strokeStyle = '#991b1b';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  
+  // Label
+  ctx.fillStyle = '#0D2340';
+  ctx.font = 'bold 11px DM Sans';
+  ctx.textAlign = 'left';
+  ctx.fillText(`EF=${patientEF}% → ${(patientProb*100).toFixed(0)}% risk`, px + 15, py - 5);
+}
+
+// ─── INITIAL DRAW ─────────────────────────────────────────────────
+showModel('knn');
+drawRandomForest();
+
+window.addEventListener('resize', () => {
+  const active = document.querySelector('.model-tab.active');
+  if (active) showModel(active.dataset.model);
+});
+</script>
+</body>
+</html>

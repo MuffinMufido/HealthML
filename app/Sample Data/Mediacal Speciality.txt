@@ -1,0 +1,99 @@
+Specialty: Cardiology
+AI Predicts: 30-day readmission risk after heart failure discharge
+Data Source: Heart Failure Clinical Records
+Target Variable: DEATH_EVENT (binary)
+
+Specialty: Radiology
+AI Predicts: Normal vs. pneumonia from clinical features
+Data Source: NIH Chest X-Ray metadata
+Target Variable: Finding Label (binary/multi)
+
+Specialty: Nephrology
+AI Predicts: Chronic kidney disease stage from routine lab values
+Data Source: UCI CKD Dataset (400 patients)
+Target Variable: classification (CKD / not CKD)
+
+Specialty: Oncology — Breast
+AI Predicts: Malignancy of a breast biopsy from cell measurements
+Data Source: Wisconsin Breast Cancer Dataset
+Target Variable: diagnosis (M/B)
+
+Specialty: Neurology — Parkinson's
+AI Predicts: Parkinson's disease from voice biomarkers
+Data Source: UCI Parkinson's Dataset
+Target Variable: status (0/1)
+
+Specialty: Endocrinology — Diabetes
+AI Predicts: Diabetes onset within 5 years from metabolic markers
+Data Source: Pima Indians Diabetes Dataset
+Target Variable: Outcome (0/1)
+
+Specialty: Hepatology — Liver
+AI Predicts: Liver disease from blood test results
+Data Source: Indian Liver Patient Dataset
+Target Variable: liver disease (yes/no)
+
+Specialty: Cardiology — Stroke
+AI Predicts: Stroke risk from demographics and comorbidities
+Data Source: Kaggle Stroke Prediction Dataset
+Target Variable: stroke (0/1)
+
+Specialty: Mental Health
+AI Predicts: Depression severity from PHQ-9 survey responses
+Data Source: Kaggle Depression/Anxiety Dataset
+Target Variable: severity class
+
+Specialty: Pulmonology — COPD
+AI Predicts: COPD exacerbation risk from spirometry data
+Data Source: Kaggle / PhysioNet COPD Dataset
+Target Variable: exacerbation (yes/no)
+
+Specialty: Haematology — Anaemia
+AI Predicts: Type of anaemia from full blood count results
+Data Source: Kaggle Anaemia Classification Dataset
+Target Variable: anemia_type (multi-class)
+
+Specialty: Dermatology
+AI Predicts: Benign vs. malignant skin lesion from dermoscopy features
+Data Source: HAM10000 metadata (Kaggle)
+Target Variable: dx_type (benign / malignant)
+
+Specialty: Ophthalmology
+AI Predicts: Diabetic retinopathy severity from clinical findings
+Data Source: UCI / Kaggle Retinopathy Dataset
+Target Variable: severity grade
+
+Specialty: Orthopaedics — Spine
+AI Predicts: Normal vs. disc herniation from biomechanical measures
+Data Source: UCI Vertebral Column Dataset
+Target Variable: class (Normal / Abnormal)
+
+Specialty: ICU / Sepsis
+AI Predicts: Sepsis onset from vital signs and lab results
+Data Source: PhysioNet / Kaggle Sepsis Dataset
+Target Variable: SepsisLabel (0/1)
+
+Specialty: Obstetrics — Fetal Health
+AI Predicts: Fetal cardiotocography classification (normal / suspect / pathological)
+Data Source: UCI Fetal Health Dataset
+Target Variable: fetal_health (1/2/3)
+
+Specialty: Cardiology — Arrhythmia
+AI Predicts: Cardiac arrhythmia presence from ECG features
+Data Source: UCI Arrhythmia Dataset
+Target Variable: arrhythmia (0/1)
+
+Specialty: Oncology — Cervical
+AI Predicts: Cervical cancer risk from demographic and behavioural data
+Data Source: UCI Cervical Cancer Dataset
+Target Variable: Biopsy (0/1)
+
+Specialty: Thyroid / Endocrinology
+AI Predicts: Thyroid function classification (hypo / hyper / normal)
+Data Source: UCI Thyroid Disease Dataset
+Target Variable: class (3 types)
+
+Specialty: Pharmacy — Readmission
+AI Predicts: Hospital readmission risk for diabetic patients on medication
+Data Source: UCI Diabetes 130-US Hospitals Dataset
+Target Variable: readmitted (<30 / >30 / NO)
