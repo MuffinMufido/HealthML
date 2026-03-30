@@ -117,28 +117,66 @@ const models: {
   ];
 
 export function ModelParameters() {
-  const { modelConfig, setModelConfig, setTrained, goToStep } = useML();
+  const {
+    modelConfig,
+    setModelConfig,
+    setTrained,
+    goToStep,
+    dataset,
+    datasetId,
+    prepConfig,
+    latestTrainResult,
+    setLatestTrainResult,
+    upsertComparedResult,
+  } = useML();
   const [training, setTraining] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isVizModalOpen, setIsVizModalOpen] = useState(false);
+  const [trainError, setTrainError] = useState("");
+  const [knnRedrawMs, setKnnRedrawMs] = useState<number | null>(null);
 
   const selectedModel = models.find((m) => m.id === modelConfig.type)!;
 
-  const handleTrain = () => {
+  const handleTrain = async () => {
     setTraining(true);
-    setProgress(0);
-    const interval = setInterval(() => {
-      setProgress((p) => {
-        if (p >= 100) {
-          clearInterval(interval);
-          setTraining(false);
-          setTrained(true);
-          goToStep(4);
-          return 100;
-        }
-        return p + Math.random() * 15 + 5;
+    setProgress(15);
+    setTrainError("");
+    try {
+      const targetColumn = Object.keys(dataset[0] || {}).find((k) =>
+        ["outcome", "target", "class", "label", "diagnosis"].includes(k.toLowerCase())
+      ) || "outcome";
+
+      const response = await fetch(`http://localhost:3001/api/dataset/${datasetId || "live"}/train`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dataset,
+          targetColumn,
+          modelType: modelConfig.type,
+          params: modelConfig.params,
+          trainSplit: prepConfig.trainSplit,
+        }),
       });
-    }, 300);
+      setProgress(65);
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.error || payload?.message || "Training failed.");
+      }
+      const result = await response.json();
+      setProgress(100);
+      setLatestTrainResult(result);
+      upsertComparedResult(result);
+      setTrained(true);
+      goToStep(4);
+    } catch (e: any) {
+      setTrainError(e?.message || "Unexpected training error.");
+      setTrained(false);
+    } finally {
+      setTimeout(() => {
+        setTraining(false);
+        setProgress(0);
+      }, 250);
+    }
   };
 
   const renderVisualization = () => {
@@ -554,15 +592,22 @@ export function ModelParameters() {
                 max={p.max}
                 step={p.step}
                 value={modelConfig.params[p.key] ?? p.default}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const nextVal = parseFloat(e.target.value);
+                  const start = performance.now();
                   setModelConfig({
                     ...modelConfig,
                     params: {
                       ...modelConfig.params,
-                      [p.key]: parseFloat(e.target.value),
+                      [p.key]: nextVal,
                     },
-                  })
-                }
+                  });
+                  if (modelConfig.type === "knn" && p.key === "k") {
+                    requestAnimationFrame(() => {
+                      setKnnRedrawMs(Math.round(performance.now() - start));
+                    });
+                  }
+                }}
                 className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
               />
               <div className="flex justify-between text-[11px] text-slate-400">
@@ -571,6 +616,11 @@ export function ModelParameters() {
               </div>
             </div>
           ))}
+          {modelConfig.type === "knn" && knnRedrawMs !== null && (
+            <div className="text-[11px] text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+              KNN redraw timing (single frame estimate): <b>{knnRedrawMs} ms</b> (target ≤ 16 ms)
+            </div>
+          )}
         </div>
       </div>
 
@@ -596,7 +646,7 @@ export function ModelParameters() {
             </p>
           </div>
         ) : (
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-3 items-start">
             <button
               onClick={() => setIsVizModalOpen(true)}
               className="flex items-center justify-center gap-2 px-6 py-3 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition cursor-pointer text-[14px] font-medium flex-1 bg-white"
@@ -611,6 +661,18 @@ export function ModelParameters() {
               <Play className="w-4 h-4" />
               Train Model
             </button>
+            {latestTrainResult && (
+              <div className="w-full text-[12px] text-slate-600 mt-1">
+                Last run: AUC {latestTrainResult.metrics.auc.toFixed(2)} · Sensitivity{" "}
+                {Math.round(latestTrainResult.metrics.sensitivity * 100)}% · Latency{" "}
+                {latestTrainResult.trainingLatencyMs} ms
+              </div>
+            )}
+            {trainError && (
+              <div className="w-full text-[12px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                {trainError}
+              </div>
+            )}
           </div>
         )}
       </div>

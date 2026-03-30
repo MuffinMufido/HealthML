@@ -1,22 +1,51 @@
 # Environment Setup Guide
 
 ## Prerequisites
-* Node.js (v18 or higher)
-* Python (3.10 or higher)
-* Git
+- Node.js 18+ (LTS recommended)
+- npm
+- Git
 
-## 1. Backend Setup (FastAPI & scikit-learn)
-1. Navigate to the backend directory: `cd backend`
-2. Create a virtual environment: `python -m venv venv`
-3. Activate the virtual environment:
-   * Windows: `venv\Scripts\activate`
-   * macOS/Linux: `source venv/bin/activate`
-4. Install dependencies: `pip install -r requirements.txt`
-5. Start the server: `uvicorn app.main:app --reload`
-   * The API docs will be available at `http://localhost:8000/docs`.
+## Project Stack (current)
+- Frontend: React + Vite (root project)
+- Backend: Node.js + Express + TypeScript (`backend`)
 
-## 2. Frontend Setup (React 18 & Vite)
-1. Navigate to the frontend directory: `cd frontend`
-2. Install dependencies: `npm install`
-3. Start the development server: `npm run dev`
-   * The browser-based UI will be available at `http://localhost:5173`.
+## 1) Install dependencies
+
+### Frontend (root)
+```bash
+npm install --legacy-peer-deps
+```
+
+### Backend
+```bash
+cd backend
+npm install
+cd ..
+```
+
+## 2) Run locally
+
+### Terminal A — Backend (port 3001)
+```bash
+cd backend
+npm run dev
+```
+
+### Terminal B — Frontend (port 5173)
+```bash
+cd ..
+npm run dev -- --host 127.0.0.1
+```
+
+## 3) Verify services
+- Frontend: `http://127.0.0.1:5173/`
+- Backend health: `http://localhost:3001/health`
+
+Expected backend response:
+```json
+{"status":"ok","message":"ML Tool Backend is running"}
+```
+
+## Notes
+- Uploaded CSV files are saved under `backend/uploads/` at runtime.
+- No Python/FastAPI setup is required for the current implementation.

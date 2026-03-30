@@ -38,6 +38,24 @@ export interface ModelConfig {
   params: Record<string, number>;
 }
 
+export interface TrainResult {
+  modelType: ModelType;
+  split: { trainPct: number; trainCount: number; testCount: number };
+  confusionMatrix: { tn: number; fp: number; fn: number; tp: number };
+  metrics: {
+    accuracy: number;
+    sensitivity: number;
+    specificity: number;
+    precision: number;
+    f1: number;
+    auc: number;
+  };
+  roc: Array<{ threshold: number; tpr: number; fpr: number }>;
+  thresholds: Record<string, { green: number; amber: number }>;
+  flags: { lowSensitivityDanger: boolean };
+  trainingLatencyMs: number;
+}
+
 export interface MLState {
   specialty: Specialty;
   setSpecialty: (s: Specialty) => void;
@@ -66,6 +84,11 @@ export interface MLState {
   setPrepConfig: (c: PrepConfig) => void;
   modelConfig: ModelConfig;
   setModelConfig: (c: ModelConfig) => void;
+  latestTrainResult: TrainResult | null;
+  setLatestTrainResult: (r: TrainResult | null) => void;
+  comparedResults: Partial<Record<ModelType, TrainResult>>;
+  upsertComparedResult: (r: TrainResult) => void;
+  clearModelResults: () => void;
   trained: boolean;
   setTrained: (b: boolean) => void;
   currentStep: number;
@@ -113,6 +136,8 @@ export function MLProvider({ children }: { children: ReactNode }) {
     type: "randomForest",
     params: { trees: 100, depth: 5, learningRate: 0.1 },
   });
+  const [latestTrainResult, setLatestTrainResult] = useState<TrainResult | null>(null);
+  const [comparedResults, setComparedResults] = useState<Partial<Record<ModelType, TrainResult>>>({});
   const [trained, setTrained] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [accessWarning, setAccessWarning] = useState<{ msg: string } | null>(null);
@@ -129,6 +154,8 @@ export function MLProvider({ children }: { children: ReactNode }) {
     setTrained(false);
     setCurrentStep(0);
     setAccessWarning(null);
+    setLatestTrainResult(null);
+    setComparedResults({});
     setPendingSpecialty(null);
     setResetConfirmOpen(false);
     setPrepConfig({
@@ -141,6 +168,19 @@ export function MLProvider({ children }: { children: ReactNode }) {
       type: "randomForest",
       params: { trees: 100, depth: 5, learningRate: 0.1 },
     });
+  };
+
+  const upsertComparedResult = (result: TrainResult) => {
+    setComparedResults((prev) => ({
+      ...prev,
+      [result.modelType]: result,
+    }));
+  };
+
+  const clearModelResults = () => {
+    setLatestTrainResult(null);
+    setComparedResults({});
+    setTrained(false);
   };
 
   const changeSpecialty = (next: Specialty) => {
@@ -213,6 +253,10 @@ export function MLProvider({ children }: { children: ReactNode }) {
         dataLoaded, setDataLoaded,
         prepConfig, setPrepConfig,
         modelConfig, setModelConfig,
+        latestTrainResult, setLatestTrainResult,
+        comparedResults,
+        upsertComparedResult,
+        clearModelResults,
         trained, setTrained,
         currentStep, setCurrentStep,
       }}

@@ -1,48 +1,113 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useML, ModelType } from "../MLContext";
 import { ArrowRight, Info, Play } from "lucide-react";
 
-// Mock results for comparison table
-const mockResults: Record<
-  ModelType,
-  {
-    name: string;
-    accuracy: number;
-    sensitivity: number;
-    specificity: number;
-    auc: number;
-  }
-> = {
-  knn: { name: "KNN", accuracy: 0.78, sensitivity: 0.62, specificity: 0.85, auc: 0.74 },
-  svm: { name: "SVM", accuracy: 0.82, sensitivity: 0.75, specificity: 0.85, auc: 0.87 },
-  decisionTree: { name: "Decision Tree", accuracy: 0.75, sensitivity: 0.68, specificity: 0.78, auc: 0.78 },
-  randomForest: { name: "Random Forest", accuracy: 0.85, sensitivity: 0.80, specificity: 0.88, auc: 0.91 },
-  logistic: { name: "Logistic Reg.", accuracy: 0.79, sensitivity: 0.72, specificity: 0.82, auc: 0.83 },
-  neuralNet: { name: "Neural Network", accuracy: 0.87, sensitivity: 0.83, specificity: 0.89, auc: 0.93 },
+const modelNames: Record<ModelType, string> = {
+  knn: "KNN",
+  svm: "SVM",
+  decisionTree: "Decision Tree",
+  randomForest: "Random Forest",
+  logistic: "Logistic Reg.",
+  neuralNet: "Neural Network",
 };
 
 export function Results() {
-  const { modelConfig, setModelConfig, setTrained, goToStep } = useML();
+  const {
+    modelConfig,
+    setModelConfig,
+    setTrained,
+    goToStep,
+    dataset,
+    datasetId,
+    prepConfig,
+    latestTrainResult,
+    setLatestTrainResult,
+    comparedResults,
+    upsertComparedResult,
+  } = useML();
   const [activeTab, setActiveTab] = useState<ModelType>(modelConfig.type);
   const [autoRetrain, setAutoRetrain] = useState(true);
   const [isTraining, setIsTraining] = useState(false);
-  const [comparedModels, setComparedModels] = useState<ModelType[]>([modelConfig.type]);
+  const [errorMsg, setErrorMsg] = useState("");
 
   // Local param state for the active tab (simplified for UI demonstration)
   const [knnK, setKnnK] = useState(5);
   const [svmC, setSvmC] = useState(1);
   const [rfTrees, setRfTrees] = useState(100);
+  const [dtDepth, setDtDepth] = useState(5);
+  const [logRegIterations, setLogRegIterations] = useState(500);
+  const [nnLearningRate, setNnLearningRate] = useState(0.01);
+  const [debouncePending, setDebouncePending] = useState(false);
+  const [debounceMeasuredMs, setDebounceMeasuredMs] = useState<number | null>(null);
 
-  const handleTrain = () => {
+  const activeParams = useMemo(() => {
+    if (activeTab === "knn") return { k: knnK };
+    if (activeTab === "svm") return { C: svmC };
+    if (activeTab === "randomForest") return { trees: rfTrees };
+    if (activeTab === "decisionTree") return { depth: dtDepth };
+    if (activeTab === "logistic") return { iterations: logRegIterations };
+    if (activeTab === "neuralNet") return { learningRate: nnLearningRate };
+    return modelConfig.params || {};
+  }, [activeTab, knnK, svmC, rfTrees, dtDepth, logRegIterations, nnLearningRate, modelConfig.params]);
+
+  const handleTrain = async () => {
     setIsTraining(true);
-    setTimeout(() => {
-      setModelConfig({ ...modelConfig, type: activeTab });
-      setTrained(true);
-      setIsTraining(false);
-      if (!comparedModels.includes(activeTab)) {
-        setComparedModels([...comparedModels, activeTab]);
+    setErrorMsg("");
+    try {
+      const targetColumn = Object.keys(dataset[0] || {}).find((k) =>
+        ["outcome", "target", "class", "label", "diagnosis"].includes(k.toLowerCase())
+      ) || "outcome";
+      const response = await fetch(`http://localhost:3001/api/dataset/${datasetId || "live"}/train`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dataset,
+          targetColumn,
+          modelType: activeTab,
+          params: { ...modelConfig.params, ...activeParams },
+          trainSplit: prepConfig.trainSplit,
+        }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.error || payload?.message || "Training failed.");
       }
-    }, 800);
+      const result = await response.json();
+      setModelConfig({ ...modelConfig, type: activeTab });
+      setLatestTrainResult(result);
+      upsertComparedResult(result);
+      setTrained(true);
+    } catch (e: any) {
+      setErrorMsg(e?.message || "Unexpected training error.");
+    } finally {
+      setIsTraining(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!autoRetrain) return;
+    if (!dataset || dataset.length < 20) return;
+    setDebouncePending(true);
+    const scheduledAt = performance.now();
+    const timer = setTimeout(() => {
+      setModelConfig({
+        ...modelConfig,
+        type: activeTab,
+        params: { ...modelConfig.params, ...activeParams },
+      });
+      setDebounceMeasuredMs(Math.round(performance.now() - scheduledAt));
+      handleTrain();
+      setDebouncePending(false);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [activeTab, knnK, svmC, rfTrees, dtDepth, logRegIterations, nnLearningRate, autoRetrain]);
+
+  const metricClass = (key: keyof NonNullable<typeof latestTrainResult>["metrics"], value: number) => {
+    const t = latestTrainResult?.thresholds?.[key];
+    if (!t) return "text-slate-700";
+    if (value >= t.green) return "text-green-700";
+    if (value >= t.amber) return "text-amber-700";
+    return "text-red-700";
   };
 
   const getModelDescription = (type: ModelType) => {
@@ -85,19 +150,19 @@ export function Results() {
             <h3 className="text-slate-900 font-medium">Choose Algorithm</h3>
 
             <div className="flex flex-wrap gap-2">
-              {(Object.keys(mockResults) as ModelType[]).map((type) => (
+              {(Object.keys(modelNames) as ModelType[]).map((type) => (
                 <button
                   key={type}
                   onClick={() => setActiveTab(type)}
                   className={`px-3 py-1.5 text-[13px] font-medium rounded-lg border transition ${activeTab === type
                     ? "bg-slate-800 text-white border-slate-800"
-                    : comparedModels.includes(type)
+                    : comparedResults[type]
                       ? "bg-slate-50 border-slate-300 text-slate-700"
                       : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
                     }`}
                 >
-                  {mockResults[type].name}
-                  {comparedModels.includes(type) && activeTab !== type && <span className="ml-1.5 text-[10px] text-teal-600">✓</span>}
+                  {modelNames[type]}
+                  {comparedResults[type] && activeTab !== type && <span className="ml-1.5 text-[10px] text-teal-600">✓</span>}
                 </button>
               ))}
             </div>
@@ -168,10 +233,39 @@ export function Results() {
             )}
 
             {["decisionTree", "logistic", "neuralNet"].includes(activeTab) && (
-              <div className="bg-blue-50 p-4 rounded-lg flex gap-3 text-blue-800 text-[13px] border border-blue-200">
-                <Info className="w-4 h-4 shrink-0 mt-0.5 text-blue-600" />
-                <p>Default parameters loaded. For simplicity in the demo, we only show extensive parameter panels for KNN, SVM, and Random Forest.</p>
-              </div>
+              <>
+                {activeTab === "decisionTree" && (
+                  <div>
+                    <label className="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-3">Max Depth</label>
+                    <div className="flex items-center gap-4 mb-2">
+                      <input type="range" min="1" max="20" step="1" value={dtDepth} onChange={(e) => setDtDepth(Number(e.target.value))} className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                      <div className="w-8 text-right font-medium text-slate-700">{dtDepth}</div>
+                    </div>
+                  </div>
+                )}
+                {activeTab === "logistic" && (
+                  <div>
+                    <label className="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-3">Max Iterations</label>
+                    <div className="flex items-center gap-4 mb-2">
+                      <input type="range" min="100" max="2000" step="100" value={logRegIterations} onChange={(e) => setLogRegIterations(Number(e.target.value))} className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                      <div className="w-14 text-right font-medium text-slate-700">{logRegIterations}</div>
+                    </div>
+                  </div>
+                )}
+                {activeTab === "neuralNet" && (
+                  <div>
+                    <label className="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-3">Learning Rate</label>
+                    <div className="flex items-center gap-4 mb-2">
+                      <input type="range" min="0.001" max="0.1" step="0.001" value={nnLearningRate} onChange={(e) => setNnLearningRate(Number(e.target.value))} className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                      <div className="w-14 text-right font-medium text-slate-700">{nnLearningRate.toFixed(3)}</div>
+                    </div>
+                  </div>
+                )}
+                <div className="bg-blue-50 p-4 rounded-lg flex gap-3 text-blue-800 text-[13px] border border-blue-200">
+                  <Info className="w-4 h-4 shrink-0 mt-0.5 text-blue-600" />
+                  <p>These controls are now active and included in training requests for all 6 models.</p>
+                </div>
+              </>
             )}
 
             <div className="flex gap-3 pt-4 border-t border-slate-100">
@@ -191,10 +285,25 @@ export function Results() {
               </button>
             </div>
 
+            {errorMsg && (
+              <div className="text-[12px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                {errorMsg}
+              </div>
+            )}
+            {debouncePending && autoRetrain && (
+              <div className="text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                Auto-retrain queued (300ms debounce)...
+              </div>
+            )}
+            {!debouncePending && debounceMeasuredMs !== null && autoRetrain && (
+              <div className="text-[12px] text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                Last debounce delay: <b>{debounceMeasuredMs} ms</b> (target 300 ms ± 50 ms)
+              </div>
+            )}
             {isTraining && (
               <div className="flex gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg items-center mt-3">
                 <span className="text-xl">⏳</span>
-                <span className="text-[13px] text-blue-800 font-medium">Training {mockResults[activeTab].name}...</span>
+                <span className="text-[13px] text-blue-800 font-medium">Training {modelNames[activeTab]}...</span>
               </div>
             )}
 
@@ -203,6 +312,77 @@ export function Results() {
 
         {/* Right Column: Visualisations & Results */}
         <div className="space-y-6">
+          {latestTrainResult && (
+            <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+              <h3 className="text-slate-900 font-medium">Performance Metrics</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="rounded-lg border border-slate-200 p-3">
+                  <div className="text-[11px] text-slate-500 uppercase">Accuracy</div>
+                  <div className={`text-[20px] font-semibold ${metricClass("accuracy", latestTrainResult.metrics.accuracy)}`}>
+                    {Math.round(latestTrainResult.metrics.accuracy * 100)}%
+                  </div>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-3">
+                  <div className="text-[11px] text-slate-500 uppercase">Sensitivity</div>
+                  <div className={`text-[20px] font-semibold ${metricClass("sensitivity", latestTrainResult.metrics.sensitivity)}`}>
+                    {Math.round(latestTrainResult.metrics.sensitivity * 100)}%
+                  </div>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-3">
+                  <div className="text-[11px] text-slate-500 uppercase">Specificity</div>
+                  <div className={`text-[20px] font-semibold ${metricClass("specificity", latestTrainResult.metrics.specificity)}`}>
+                    {Math.round(latestTrainResult.metrics.specificity * 100)}%
+                  </div>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-3">
+                  <div className="text-[11px] text-slate-500 uppercase">Precision</div>
+                  <div className={`text-[20px] font-semibold ${metricClass("precision", latestTrainResult.metrics.precision)}`}>
+                    {Math.round(latestTrainResult.metrics.precision * 100)}%
+                  </div>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-3">
+                  <div className="text-[11px] text-slate-500 uppercase">F1 Score</div>
+                  <div className={`text-[20px] font-semibold ${metricClass("f1", latestTrainResult.metrics.f1)}`}>
+                    {Math.round(latestTrainResult.metrics.f1 * 100)}%
+                  </div>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-3">
+                  <div className="text-[11px] text-slate-500 uppercase">AUC</div>
+                  <div className={`text-[20px] font-semibold ${metricClass("auc", latestTrainResult.metrics.auc)}`}>
+                    {latestTrainResult.metrics.auc.toFixed(2)}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 text-[11px] text-slate-600">
+                <div className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-green-600"></span>Green: meets target</div>
+                <div className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500"></span>Amber: caution zone</div>
+                <div className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-red-600"></span>Red: below acceptable threshold</div>
+              </div>
+              <div className="overflow-x-auto rounded-lg border border-slate-200">
+                <table className="w-full text-left text-[12px]">
+                  <thead className="bg-slate-50 text-slate-600 border-b border-slate-200">
+                    <tr>
+                      <th className="p-2.5 font-medium">Metric</th>
+                      <th className="p-2.5 font-medium">Green Threshold</th>
+                      <th className="p-2.5 font-medium">Amber Threshold</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {Object.entries(latestTrainResult.thresholds).map(([k, t]) => (
+                      <tr key={k}>
+                        <td className="p-2.5 uppercase">{k}</td>
+                        <td className="p-2.5 text-green-700 font-medium">{Math.round(t.green * 100)}%</td>
+                        <td className="p-2.5 text-amber-700 font-medium">{Math.round(t.amber * 100)}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="text-[11px] text-slate-500">
+                Training latency: <b>{latestTrainResult.trainingLatencyMs} ms</b> (target &lt; 3000 ms)
+              </div>
+            </div>
+          )}
 
           {/* ROC Curve Visualization */}
           <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
@@ -216,13 +396,54 @@ export function Results() {
               {/* Diagonal (random) */}
               <line x1="30" y1="150" x2="290" y2="10" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="4,3" />
               {/* ROC curve */}
-              <path d="M30,150 C60,120 80,60 120,40 C160,22 200,15 290,10" fill="none" stroke="#0ea5e9" strokeWidth="2.5" />
-              <text x="100" y="90" fill="#0ea5e9" fontSize="10" fontWeight="bold" fontFamily="sans-serif">AUC = {mockResults[activeTab]?.auc?.toFixed(2) || "0.81"}</text>
+              <polyline
+                fill="none"
+                stroke="#0ea5e9"
+                strokeWidth="2.5"
+                points={
+                  (latestTrainResult?.roc?.length
+                    ? latestTrainResult.roc
+                    : [{ fpr: 0, tpr: 0 }, { fpr: 1, tpr: 1 }]
+                  )
+                    .map((p) => `${30 + p.fpr * 260},${150 - p.tpr * 140}`)
+                    .join(" ")
+                }
+              />
+              <text x="100" y="90" fill="#0ea5e9" fontSize="10" fontWeight="bold" fontFamily="sans-serif">
+                AUC = {latestTrainResult?.metrics?.auc?.toFixed(2) || "N/A"}
+              </text>
             </svg>
             <div className="text-[11px] text-slate-500 mt-2 leading-relaxed">
-              A perfect model would go straight to the top-left corner. Our curve (blue) is well above the diagonal line (random guessing), which is good. AUC of {mockResults[activeTab]?.auc?.toFixed(2) || "0.81"} = good discriminative ability.
+              A perfect model would go straight to the top-left corner. The blue curve comes from live backend training output. Current AUC: {latestTrainResult?.metrics?.auc?.toFixed(2) || "N/A"}.
             </div>
           </div>
+
+          {latestTrainResult && (
+            <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+              <h3 className="text-slate-900 font-medium">Confusion Matrix (TN / FP / FN / TP)</h3>
+              <div className="grid grid-cols-2 gap-3 text-[13px]">
+                <div className="rounded-lg border border-slate-200 p-3">TN: <b>{latestTrainResult.confusionMatrix.tn}</b></div>
+                <div className="rounded-lg border border-slate-200 p-3">FP: <b>{latestTrainResult.confusionMatrix.fp}</b></div>
+                <div className="rounded-lg border border-slate-200 p-3">FN: <b>{latestTrainResult.confusionMatrix.fn}</b></div>
+                <div className="rounded-lg border border-slate-200 p-3">TP: <b>{latestTrainResult.confusionMatrix.tp}</b></div>
+              </div>
+              {latestTrainResult.confusionMatrix.fn > 0 && (
+                <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded-lg text-[13px]">
+                  ⚠ FN Warning: {latestTrainResult.confusionMatrix.fn} positive patient(s) were missed. In screening use-cases this is clinically risky.
+                </div>
+              )}
+              {latestTrainResult.confusionMatrix.fp > 0 && (
+                <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-[13px]">
+                  ℹ FP Info: {latestTrainResult.confusionMatrix.fp} false alarm(s) may increase follow-up workload, but are often safer than missed positives.
+                </div>
+              )}
+              {latestTrainResult.flags.lowSensitivityDanger && (
+                <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded-lg text-[13px]">
+                  ⚠ Low Sensitivity Danger: sensitivity is below 50%. The model may miss true positive patients.
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
             <h3 className="text-slate-900 font-medium">Model Comparison</h3>
@@ -238,20 +459,22 @@ export function Results() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {comparedModels.map((modelId) => {
-                    const r = mockResults[modelId];
+                  {(Object.keys(comparedResults) as ModelType[]).map((modelId) => {
+                    const r = comparedResults[modelId];
                     if (!r) return null; // Safe check
                     return (
                       <tr key={modelId} className={activeTab === modelId ? "bg-blue-50/50" : ""}>
-                        <td className="p-3 font-medium">{r.name}</td>
-                        <td className="p-3">{Math.round(r.accuracy * 100)}%</td>
-                        <td className="p-3 text-orange-600 font-bold">{Math.round(r.sensitivity * 100)}%</td>
-                        <td className="p-3">{Math.round(r.specificity * 100)}%</td>
-                        <td className="p-3">{r.auc.toFixed(2)}</td>
+                        <td className="p-3 font-medium">{modelNames[modelId]}</td>
+                        <td className="p-3">{Math.round(r.metrics.accuracy * 100)}%</td>
+                        <td className={`p-3 font-bold ${r.metrics.sensitivity < 0.5 ? "text-red-600" : "text-orange-600"}`}>
+                          {Math.round(r.metrics.sensitivity * 100)}%
+                        </td>
+                        <td className="p-3">{Math.round(r.metrics.specificity * 100)}%</td>
+                        <td className="p-3">{r.metrics.auc.toFixed(2)}</td>
                       </tr>
                     )
                   })}
-                  {comparedModels.length === 0 && (
+                  {Object.keys(comparedResults).length === 0 && (
                     <tr>
                       <td colSpan={5} className="p-6 text-center text-slate-400">Train a model to see comparative results.</td>
                     </tr>
