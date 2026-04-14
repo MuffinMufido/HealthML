@@ -4,14 +4,17 @@ Real scikit-learn training, ablation-based explanations, subgroup fairness.
 Run with: venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
 """
 
+import io
 import uuid
 import time
-from typing import Any, Dict, List
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from imblearn.over_sampling import SMOTE
 from pydantic import BaseModel
 from sklearn.ensemble import RandomForestClassifier
@@ -59,6 +62,37 @@ class TrainRequest(BaseModel):
     params: Dict[str, Any] = {}
     trainSplit: float = 80
     imbalance: str = "none"   # smote | weights | none
+
+
+class CertChecklistItem(BaseModel):
+    id: int
+    text: str
+    sub: str
+    checked: bool
+
+
+class CertSubgroup(BaseModel):
+    group: str
+    accuracy: str
+    sensitivity: str
+    specificity: str
+    fairness: str
+    status: str
+
+
+class CertRequest(BaseModel):
+    specialty: str = ""
+    modelType: str = ""
+    split: Dict[str, Any] = {}
+    metrics: Dict[str, float] = {}
+    confusionMatrix: Dict[str, int] = {}
+    featureColumns: List[str] = []
+    trainingLatencyMs: int = 0
+    thresholds: Dict[str, Any] = {}
+    subgroups: List[CertSubgroup] = []
+    biasDetected: bool = False
+    biasMessage: str = ""
+    checklist: List[CertChecklistItem] = []
 
 
 # ---------------------------------------------------------------------------
@@ -572,8 +606,7 @@ def fairness(modelId: str = Query(...)):
     overall_sensitivity = overall["sensitivity"]
 
     def status_for_gap(gap: float):
-        if gap > 0.15: return "bad", "⚠ Review Needed"
-        if gap > 0.08: return "warn", "Review"
+        if gap > 0.10: return "bad", "⚠ Review Needed"
         return "good", "OK"
 
     subgroups = []
@@ -636,3 +669,230 @@ def fairness(modelId: str = Query(...)):
         "representation": representation,
         "overallMetrics": {k: round(v * 100) for k, v in overall.items()},
     }
+
+
+# ---------------------------------------------------------------------------
+# Certificate endpoint
+# ---------------------------------------------------------------------------
+
+@app.post("/generate-certificate")
+def generate_certificate(req: CertRequest):
+    from fpdf import FPDF
+
+    now_str = datetime.now().strftime("%Y-%m-%d")
+    now_full = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    class PDF(FPDF):
+        def header(self): pass
+        def footer(self): pass
+
+    pdf = PDF(orientation="P", unit="mm", format="A4")
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.set_left_margin(18)
+    pdf.set_right_margin(18)
+    W = 174  # content width
+
+    def section_title(title: str):
+        pdf.set_fill_color(13, 35, 64)
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.cell(W, 7, title, fill=True, ln=True)
+        pdf.ln(1)
+
+    def metric_row(label: str, val: str, desc: str, color=(30, 30, 30)):
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.set_text_color(70, 70, 70)
+        pdf.cell(52, 6, label + ":")
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.set_text_color(*color)
+        pdf.cell(18, 6, val)
+        pdf.set_font("Helvetica", "", 8)
+        pdf.set_text_color(110, 110, 110)
+        pdf.cell(0, 6, desc, ln=True)
+
+    def data_row(label: str, val: str):
+        pdf.set_font("Helvetica", "B", 9)
+        pdf.set_text_color(80, 80, 80)
+        pdf.cell(52, 6, label + ":")
+        pdf.set_font("Helvetica", "", 9)
+        pdf.set_text_color(30, 30, 30)
+        pdf.multi_cell(0, 6, val)
+
+    # ── HEADER ──────────────────────────────────────────────────────────────
+    pdf.set_fill_color(13, 35, 64)
+    pdf.rect(0, 0, 210, 22, "F")
+    pdf.set_xy(18, 7)
+    pdf.set_font("Helvetica", "B", 15)
+    pdf.set_text_color(255, 255, 255)
+    pdf.cell(0, 6, "HealthML — Model Summary Certificate", ln=True)
+    pdf.set_xy(18, 14)
+    pdf.set_font("Helvetica", "", 8)
+    pdf.set_text_color(180, 210, 240)
+    pdf.cell(0, 5, "Educational ML Visualisation Tool  ·  For Healthcare Professionals / Students", ln=True)
+    pdf.ln(10)
+
+    # Metadata
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(100, 100, 100)
+    pdf.cell(0, 5, f"Generated: {now_full}    Specialty: {req.specialty or 'Not specified'}    Model: {req.modelType or '—'}", ln=True)
+    pdf.set_draw_color(200, 200, 200)
+    pdf.line(18, pdf.get_y() + 1, 192, pdf.get_y() + 1)
+    pdf.ln(5)
+
+    # ── SECTION 1: DATASET ──────────────────────────────────────────────────
+    section_title("1  DATASET & TRAINING SETUP")
+    data_row("Specialty", req.specialty or "Not specified")
+    data_row("Model type", req.modelType or "—")
+    tc = req.split.get("trainCount", "—")
+    tp = req.split.get("trainPct", "—")
+    te = req.split.get("testCount", "—")
+    data_row("Training patients", f"{tc}  ({tp}% of dataset)")
+    data_row("Test patients", f"{te}  ({100 - int(tp) if tp != '—' else '—'}%  — never seen during training)")
+    lat = req.trainingLatencyMs
+    data_row("Training latency", f"{lat} ms  (target < 3 000 ms)")
+    if req.featureColumns:
+        data_row("Features used", "  ·  ".join(req.featureColumns[:12]))
+    pdf.ln(3)
+
+    # ── SECTION 2: METRICS ──────────────────────────────────────────────────
+    section_title("2  PERFORMANCE METRICS")
+    m = req.metrics
+    t = req.thresholds
+    def metric_color(key: str, val: float):
+        thresh = t.get(key, {})
+        g, a = thresh.get("green", 0.8), thresh.get("amber", 0.7)
+        if val >= g: return (22, 101, 52)
+        if val >= a: return (146, 64, 14)
+        return (153, 27, 27)
+
+    rows = [
+        ("Accuracy",    m.get("accuracy"),    "% correctly classified"),
+        ("Sensitivity", m.get("sensitivity"), "% of truly positive patients caught  ★ most critical"),
+        ("Specificity", m.get("specificity"), "% of truly negative patients correctly cleared"),
+        ("Precision",   m.get("precision"),   "% of flagged patients who actually had condition"),
+        ("F1 Score",    m.get("f1"),          "Balance between sensitivity and precision"),
+        ("AUC-ROC",     m.get("auc"),         "Separation ability (0.5=random, 1.0=perfect)"),
+    ]
+    for label, val, desc in rows:
+        if val is None: continue
+        pct = f"{val:.2f}" if label == "AUC-ROC" else f"{val*100:.1f}%"
+        color = metric_color(label.lower().replace(" ", "").replace("-", "").replace("★", "").strip(), val)
+        metric_row(label, pct, desc, color)
+    pdf.ln(3)
+
+    # ── SECTION 3: CONFUSION MATRIX ─────────────────────────────────────────
+    section_title("3  CONFUSION MATRIX")
+    cm = req.confusionMatrix
+    tn, fp, fn, tp_val = cm.get("tn", 0), cm.get("fp", 0), cm.get("fn", 0), cm.get("tp", 0)
+
+    col_w = W / 2
+    pdf.set_fill_color(60, 80, 120)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Helvetica", "B", 8)
+    pdf.cell(col_w, 6, "Predicted: NOT at Risk", fill=True, border=0)
+    pdf.cell(col_w, 6, "Predicted: AT RISK", fill=True, border=0, ln=True)
+
+    def cm_cell(val: int, label: str, r: int, g: int, b: int):
+        pdf.set_fill_color(r, g, b)
+        pdf.set_text_color(30, 30, 30)
+        pdf.set_font("Helvetica", "B", 14)
+        x_start = pdf.get_x()
+        pdf.cell(col_w, 10, str(val), fill=True, border=0)
+        pdf.set_font("Helvetica", "", 7)
+        pdf.set_text_color(60, 60, 60)
+
+    cm_cell(tn, "True Negative", 220, 252, 231)
+    cm_cell(fp, "False Positive", 254, 243, 199)
+    pdf.ln()
+    pdf.set_font("Helvetica", "", 7); pdf.set_text_color(60, 60, 60)
+    pdf.cell(col_w, 4, "  Correctly safe"); pdf.cell(col_w, 4, "  Unnecessary alarm", ln=True)
+    cm_cell(fn, "False Negative", 254, 226, 226)
+    cm_cell(tp_val, "True Positive", 220, 252, 231)
+    pdf.ln()
+    pdf.set_font("Helvetica", "", 7); pdf.set_text_color(60, 60, 60)
+    pdf.cell(col_w, 4, "  MISSED CASE ⚠"); pdf.cell(col_w, 4, "  Correctly flagged", ln=True)
+    if fn > 0:
+        pdf.ln(1)
+        pdf.set_font("Helvetica", "B", 8)
+        pdf.set_text_color(153, 27, 27)
+        pdf.multi_cell(W, 5, f"⚠  {fn} patient(s) missed (False Negatives) — most dangerous errors in screening.")
+    pdf.ln(3)
+
+    # ── SECTION 4: FAIRNESS ─────────────────────────────────────────────────
+    section_title("4  SUBGROUP FAIRNESS AUDIT")
+    if req.subgroups:
+        pdf.set_font("Helvetica", "B", 8)
+        pdf.set_text_color(50, 50, 80)
+        pdf.set_fill_color(240, 244, 248)
+        pdf.cell(50, 6, "Patient Group", fill=True)
+        pdf.cell(30, 6, "Accuracy", fill=True)
+        pdf.cell(30, 6, "Sensitivity", fill=True)
+        pdf.cell(30, 6, "Specificity", fill=True)
+        pdf.cell(0, 6, "Fairness", fill=True, ln=True)
+        for i, s in enumerate(req.subgroups):
+            fill = i % 2 == 0
+            pdf.set_fill_color(250, 251, 252)
+            color = (22, 101, 52) if s.status == "good" else (153, 27, 27)
+            pdf.set_font("Helvetica", "", 8); pdf.set_text_color(40, 40, 40)
+            pdf.cell(50, 6, s.group, fill=fill)
+            pdf.cell(30, 6, s.accuracy, fill=fill)
+            pdf.set_text_color(*color); pdf.set_font("Helvetica", "B", 8)
+            pdf.cell(30, 6, s.sensitivity, fill=fill)
+            pdf.set_font("Helvetica", "", 8); pdf.set_text_color(40, 40, 40)
+            pdf.cell(30, 6, s.specificity, fill=fill)
+            pdf.set_text_color(*color)
+            pdf.cell(0, 6, s.fairness, fill=fill, ln=True)
+        pdf.ln(2)
+        if req.biasDetected:
+            pdf.set_fill_color(254, 226, 226)
+            pdf.set_text_color(153, 27, 27)
+            pdf.set_font("Helvetica", "B", 8)
+            pdf.multi_cell(W, 5, f"BIAS DETECTED: {req.biasMessage}", fill=True)
+        else:
+            pdf.set_fill_color(220, 252, 231)
+            pdf.set_text_color(22, 101, 52)
+            pdf.set_font("Helvetica", "B", 8)
+            pdf.cell(W, 6, "No significant bias detected across measured subgroups.", fill=True, ln=True)
+    else:
+        pdf.set_font("Helvetica", "", 9)
+        pdf.set_text_color(100, 100, 100)
+        pdf.cell(0, 6, "No subgroup data — no gender or age columns detected.", ln=True)
+    pdf.ln(3)
+
+    # ── SECTION 5: CHECKLIST ────────────────────────────────────────────────
+    section_title("5  EU AI ACT COMPLIANCE CHECKLIST")
+    checked_count = sum(1 for c in req.checklist if c.checked)
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(80, 80, 80)
+    pdf.cell(0, 5, f"{checked_count} of {len(req.checklist)} items completed", ln=True)
+    pdf.ln(1)
+    for item in req.checklist:
+        is_checked = item.checked
+        pdf.set_fill_color(*(220, 252, 231) if is_checked else (254, 242, 242))
+        pdf.set_text_color(22 if is_checked else 153, 101 if is_checked else 27, 52 if is_checked else 27)
+        pdf.set_font("Helvetica", "B", 9)
+        mark = "[v]" if is_checked else "[ ]"
+        pdf.cell(10, 6, mark, fill=True)
+        pdf.set_text_color(30, 30, 30)
+        pdf.set_font("Helvetica", "B" if is_checked else "", 9)
+        pdf.multi_cell(W - 10, 6, item.text, fill=True)
+        pdf.ln(0.5)
+    pdf.ln(3)
+
+    # ── FOOTER ──────────────────────────────────────────────────────────────
+    pdf.set_draw_color(180, 180, 180)
+    pdf.line(18, pdf.get_y(), 192, pdf.get_y())
+    pdf.ln(3)
+    pdf.set_font("Helvetica", "", 7)
+    pdf.set_text_color(130, 130, 130)
+    pdf.multi_cell(W, 4, "This certificate was generated by HealthML — an educational tool for healthcare professionals and students. "
+                         "It is NOT a clinical report and must NOT be used for diagnosis, treatment, or patient care decisions. "
+                         "Always seek qualified medical oversight before acting on any AI prediction.")
+
+    pdf_bytes = pdf.output()
+    return Response(
+        content=bytes(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="HealthML_Certificate_{now_str}.pdf"'},
+    )

@@ -32,6 +32,34 @@ function getFromML(path: string): Promise<any> {
   });
 }
 
+function postToMLBinary(path: string, body: any): Promise<{ data: Buffer; headers: http.IncomingMessage['headers'] }> {
+  return new Promise((resolve, reject) => {
+    const bodyStr = JSON.stringify(body);
+    const opts = {
+      hostname: ML_HOST,
+      port: ML_PORT,
+      path,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(bodyStr) },
+    };
+    const req = http.request(opts, (res) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (chunk: Buffer) => chunks.push(chunk));
+      res.on('end', () => {
+        const data = Buffer.concat(chunks);
+        if ((res.statusCode ?? 200) >= 400) {
+          reject({ status: res.statusCode, message: data.toString() });
+        } else {
+          resolve({ data, headers: res.headers });
+        }
+      });
+    });
+    req.on('error', (e) => reject({ status: 502, message: `ML service unavailable: ${e.message}` }));
+    req.write(bodyStr);
+    req.end();
+  });
+}
+
 router.get('/explain', async (req, res) => {
   const modelId = req.query.modelId as string;
   if (!modelId) {
@@ -53,6 +81,17 @@ router.get('/fairness', async (req, res) => {
   try {
     const data = await getFromML(`/fairness?modelId=${encodeURIComponent(modelId)}`);
     res.json(data);
+  } catch (e: any) {
+    res.status(e.status || 502).json({ error: e.message || 'ML service unavailable' });
+  }
+});
+
+router.post('/generate-certificate', async (req: any, res: any) => {
+  try {
+    const { data, headers } = await postToMLBinary('/generate-certificate', req.body);
+    res.setHeader('Content-Type', headers['content-type'] || 'application/pdf');
+    res.setHeader('Content-Disposition', headers['content-disposition'] || 'attachment; filename="HealthML_Certificate.pdf"');
+    res.send(data);
   } catch (e: any) {
     res.status(e.status || 502).json({ error: e.message || 'ML service unavailable' });
   }

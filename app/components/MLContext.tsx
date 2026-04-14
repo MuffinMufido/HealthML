@@ -42,6 +42,7 @@ export interface TrainResult {
   modelType: ModelType;
   modelId?: string;
   split: { trainPct: number; trainCount: number; testCount: number };
+  featureColumns?: string[];
   confusionMatrix: { tn: number; fp: number; fn: number; tp: number };
   metrics: {
     accuracy: number;

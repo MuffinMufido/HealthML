@@ -5,3 +5,4 @@ imbalanced-learn>=0.12
 pandas>=2.0
 numpy>=1.26
 pydantic>=2.9
+fpdf2>=2.7

@@ -17,8 +17,92 @@ type ExplainData = {
   patients: PatientExplanation[];
 };
 
+// Domain-specific sense-check messages for all 20 specialties
+const SPECIALTY_SENSE: Record<string, { expected: string; context: string }> = {
+  cardiology_heart_failure: {
+    expected: "ejection fraction, serum creatinine, NT-proBNP, age, sodium",
+    context: "Ejection fraction <40% is a primary discriminator of adverse outcomes. Serum creatinine and sodium reflect cardiorenal syndrome, which significantly worsens prognosis.",
+  },
+  radiology_pneumonia: {
+    expected: "oxygen saturation, respiratory rate, CRP, age, urea",
+    context: "CURB-65 score uses confusion, urea, respiratory rate, blood pressure, and age ≥65. Models trained on similar variables should rank these highly for severity prediction.",
+  },
+  nephrology_ckd: {
+    expected: "serum creatinine, eGFR, albumin/creatinine ratio, urea, haemoglobin",
+    context: "eGFR and serum creatinine are primary markers of kidney function. Progressive CKD is characterised by declining GFR; values <60 mL/min/1.73 m² indicate Stage 3+ disease.",
+  },
+  oncology_breast: {
+    expected: "tumour size, lymph node status, hormone receptor status, grade, HER2",
+    context: "Tumour size, lymph node involvement, and receptor status (ER/PR/HER2) are established prognostic factors in breast cancer. These should dominate an outcome prediction model.",
+  },
+  neurology_parkinson: {
+    expected: "UPDRS score, tremor, rigidity, bradykinesia, age",
+    context: "UPDRS (Unified Parkinson's Disease Rating Scale) components directly quantify motor and non-motor symptoms. Higher scores correlate with disease severity and faster progression.",
+  },
+  endocrinology_diabetes: {
+    expected: "HbA1c, fasting glucose, BMI, age, blood pressure",
+    context: "HbA1c reflects 3-month average blood glucose and is the gold standard for diabetes management. Fasting glucose, BMI, and family history are the strongest predictors of onset.",
+  },
+  hepatology_liver: {
+    expected: "ALT, AST, bilirubin, INR, albumin, platelet count",
+    context: "Child-Pugh and MELD scores use bilirubin, INR, creatinine, and albumin to grade liver disease severity. Elevated transaminases (ALT/AST) indicate active hepatocellular injury.",
+  },
+  cardiology_stroke: {
+    expected: "blood pressure, age, atrial fibrillation, cholesterol, smoking",
+    context: "The CHADS₂ and CHA₂DS₂-VASc scores use hypertension, age, diabetes, prior stroke, and heart failure. Blood pressure and atrial fibrillation are primary modifiable stroke risk factors.",
+  },
+  mental_health_depression: {
+    expected: "PHQ-9 score, sleep, social function, age, prior episodes",
+    context: "PHQ-9 severity score, functional impairment, and prior episode history are the strongest predictors of recurrence. Sleep disturbance is an early marker of relapse risk.",
+  },
+  pulmonology_copd: {
+    expected: "FEV1, FVC, FEV1/FVC ratio, smoking pack-years, oxygen saturation",
+    context: "GOLD staging relies on FEV1 % predicted and symptom burden. FEV1/FVC <0.7 post-bronchodilator confirms airflow obstruction; smoking pack-years quantify exposure.",
+  },
+  haematology_anaemia: {
+    expected: "haemoglobin, MCV, ferritin, transferrin saturation, reticulocyte count",
+    context: "Haemoglobin level determines anaemia severity. MCV differentiates microcytic (iron deficiency, thalassaemia) from normocytic (chronic disease) from macrocytic (B12/folate) anaemia.",
+  },
+  dermatology_lesion: {
+    expected: "lesion diameter, asymmetry, border irregularity, colour variation, age",
+    context: "ABCDE criteria (Asymmetry, Border, Colour, Diameter, Evolution) underpin melanoma screening. Diameter >6 mm and irregular borders are established high-risk features.",
+  },
+  ophthalmology_retinopathy: {
+    expected: "HbA1c, diabetes duration, blood pressure, microaneurysms, exudates",
+    context: "Diabetic retinopathy severity correlates strongly with HbA1c and diabetes duration. Microaneurysms are the earliest fundoscopic sign; hard exudates indicate macular involvement.",
+  },
+  orthopaedics_spine: {
+    expected: "pain score, BMI, age, disc degeneration grade, functional impairment",
+    context: "Pain severity, functional limitation, and disc degeneration grade (Pfirrmann scale) are primary predictors of surgical outcome. BMI and smoking impair healing post-procedure.",
+  },
+  icu_sepsis: {
+    expected: "lactate, SOFA score, heart rate, respiratory rate, white cell count",
+    context: "Sepsis-3 criteria use SOFA score (Sequential Organ Failure Assessment) and lactate ≥2 mmol/L. Early lactate clearance within 6 hours is the strongest predictor of survival.",
+  },
+  obstetrics_fetal: {
+    expected: "fetal heart rate variability, decelerations, gestational age, maternal BP",
+    context: "CTG interpretation (cardiotocography) uses baseline heart rate, variability, accelerations, and decelerations. Prolonged late decelerations indicate uteroplacental insufficiency.",
+  },
+  cardiology_arrhythmia: {
+    expected: "heart rate, QRS width, P-wave morphology, PR interval, age",
+    context: "ECG-derived features (QRS morphology, PR interval, QTc) are primary classifiers of arrhythmia type. Prolonged QTc (>450 ms men, >470 ms women) indicates torsades risk.",
+  },
+  oncology_cervical: {
+    expected: "HPV status, cytology grade, colposcopy findings, age, CIN grade",
+    context: "HPV high-risk genotypes (16, 18) are present in >99% of cervical cancers. CIN grade from biopsy and abnormal cytology (HSIL) are the primary features in progression models.",
+  },
+  endocrinology_thyroid: {
+    expected: "TSH, free T4, T3, thyroid antibodies, nodule size",
+    context: "TSH is the most sensitive screening test for thyroid dysfunction. Suppressed TSH with elevated free T4 indicates hyperthyroidism; elevated TSH with low T4 indicates hypothyroidism.",
+  },
+  pharmacy_readmission: {
+    expected: "number of medications, prior admissions, length of stay, age, comorbidities",
+    context: "Polypharmacy (≥5 medications), prior 30-day admissions, and comorbidity burden (Charlson index) are the strongest predictors of unplanned readmission. Medication reconciliation errors are a common modifiable cause.",
+  },
+};
+
 export function Explainability() {
-  const { trained, latestTrainResult, goToStep } = useML();
+  const { trained, latestTrainResult, goToStep, specialty } = useML();
   const [explainData, setExplainData] = useState<ExplainData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -135,25 +219,35 @@ export function Explainability() {
               </div>
             </div>
 
-            {explainData && explainData.globalFeatures.length > 0 && (
-              <div className="flex items-start gap-3 p-3 bg-teal-50 border border-teal-200 rounded-xl">
-                <Lightbulb className="w-5 h-5 text-teal-600 mt-0.5 shrink-0" />
-                <div className="text-[13px] text-teal-900">
-                  <span className="font-bold">Clinical sense-check:</span> The top-ranked feature is <span className="font-semibold capitalize">{explainData.globalFeatures[0]?.label}</span>.{" "}
-                  {(() => {
-                    const top = (explainData.globalFeatures[0]?.label ?? "").toLowerCase();
-                    if (top.includes("age")) return "Age is a well-established risk factor in most clinical domains — this is consistent with medical literature.";
-                    if (top.includes("ejection") || top.includes("ef")) return "Ejection fraction is a key indicator of heart function — its top ranking is clinically expected for cardiac outcomes.";
-                    if (top.includes("creatinine") || top.includes("serum")) return "Serum creatinine reflects kidney function and is a recognised predictor of adverse outcomes.";
-                    if (top.includes("glucose") || top.includes("blood_glucose")) return "Blood glucose is a primary driver of diabetic outcomes — clinically expected to rank highly.";
-                    if (top.includes("bmi") || top.includes("weight")) return "BMI and weight are established risk factors across many chronic disease pathways.";
-                    if (top.includes("bp") || top.includes("blood_pressure") || top.includes("hypertension")) return "Blood pressure is a core cardiovascular risk factor — expected to rank highly in cardiac and stroke models.";
-                    if (top.includes("smoking") || top.includes("tobacco")) return "Smoking status is a well-documented predictor across respiratory, cardiac, and oncology domains.";
-                    return "Review this feature against established clinical guidelines for your specialty to confirm it represents a known risk factor.";
-                  })()}
+            {explainData && explainData.globalFeatures.length > 0 && (() => {
+              const topLabel = explainData.globalFeatures[0]?.label ?? "";
+              const domainInfo = SPECIALTY_SENSE[specialty as keyof typeof SPECIALTY_SENSE];
+              const senseText = domainInfo
+                ? `Expected key predictors for this domain include: ${domainInfo.expected}. ${domainInfo.context}`
+                : (() => {
+                    const t = topLabel.toLowerCase();
+                    if (t.includes("age")) return "Age is a well-established risk factor across most clinical domains — this ranking is consistent with medical literature.";
+                    if (t.includes("ejection") || t.includes("ef")) return "Ejection fraction is a key indicator of cardiac function — clinically expected to rank highly for heart failure outcomes.";
+                    if (t.includes("creatinine") || t.includes("serum")) return "Serum creatinine reflects kidney function and is a recognised predictor of adverse outcomes across many specialties.";
+                    if (t.includes("glucose") || t.includes("hba1c")) return "Blood glucose and HbA1c are primary drivers of diabetic and metabolic outcomes.";
+                    if (t.includes("bmi") || t.includes("weight")) return "BMI is an established risk factor across many chronic disease pathways.";
+                    if (t.includes("bp") || t.includes("blood pressure") || t.includes("hypertension")) return "Blood pressure is a core cardiovascular risk factor — expected to rank highly in cardiac and stroke models.";
+                    if (t.includes("smoking") || t.includes("tobacco")) return "Smoking status is a well-documented predictor across respiratory, cardiac, and oncology domains.";
+                    if (t.includes("lactate") || t.includes("sofa")) return "Lactate and SOFA score are primary sepsis severity markers per Sepsis-3 criteria.";
+                    return "Cross-check this feature against established clinical guidelines for your specialty to confirm it represents a known risk factor.";
+                  })();
+              return (
+                <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                  <Lightbulb className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+                  <div className="text-[13px] text-amber-900">
+                    <span className="font-bold">Clinical sense-check:</span>{" "}
+                    {specialty && domainInfo
+                      ? senseText
+                      : <>Top feature: <span className="font-semibold">{topLabel}</span>. {senseText}</>}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
 
           <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
@@ -224,10 +318,10 @@ export function Explainability() {
                 ))}
               </div>
 
-              <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-xl mt-6">
-                <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
-                <div className="text-[13px] text-red-900">
-                  <span className="font-bold">Important:</span> These are associations, not causes. A cardiologist must decide whether and how to act on model predictions.
+              <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl mt-6">
+                <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+                <div className="text-[13px] text-amber-900">
+                  <span className="font-bold">Important:</span> These are associations, not causes. A qualified clinician must decide whether and how to act on model predictions.
                 </div>
               </div>
 
