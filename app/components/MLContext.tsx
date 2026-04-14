@@ -40,6 +40,7 @@ export interface ModelConfig {
 
 export interface TrainResult {
   modelType: ModelType;
+  modelId?: string;
   split: { trainPct: number; trainCount: number; testCount: number };
   confusionMatrix: { tn: number; fp: number; fn: number; tp: number };
   metrics: {
@@ -69,6 +70,8 @@ export interface MLState {
   setDataset: (d: PatientRecord[]) => void;
   datasetId: string | null;
   setDatasetId: (id: string | null) => void;
+  targetColumn: string;
+  setTargetColumn: (col: string) => void;
   schemaOK: boolean;
   setSchemaOK: (b: boolean) => void;
   columns: string[];
@@ -121,6 +124,7 @@ export function MLProvider({ children }: { children: ReactNode }) {
   const [pendingSpecialty, setPendingSpecialty] = useState<Specialty | null>(null);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [datasetId, setDatasetId] = useState<string | null>(null);
+  const [targetColumn, setTargetColumn] = useState<string>("outcome");
   const [dataset, setDataset] = useState<PatientRecord[]>(defaultDataset);
   const [columns, setColumns] = useState<string[]>(Object.keys(defaultDataset[0] || {}));
   const [schemaOK, setSchemaOK] = useState(false);
@@ -146,6 +150,7 @@ export function MLProvider({ children }: { children: ReactNode }) {
 
   const resetPipeline = () => {
     setDatasetId(null);
+    setTargetColumn("outcome");
     setDataset(defaultDataset);
     setColumns(Object.keys(defaultDataset[0] || {}));
     setSchemaOK(false);
@@ -243,6 +248,7 @@ export function MLProvider({ children }: { children: ReactNode }) {
         confirmResetAndSwitch,
         cancelResetAndSwitch,
         datasetId, setDatasetId,
+        targetColumn, setTargetColumn,
         schemaOK, setSchemaOK,
         dataset, setDataset,
         columns, setColumns,

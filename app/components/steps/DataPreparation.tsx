@@ -3,7 +3,7 @@ import { useML } from "../MLContext";
 import { ArrowRight, Settings2 } from "lucide-react";
 
 export function DataPreparation() {
-  const { prepConfig, setPrepConfig, dataset, setDataset, goToStep, datasetId, isPrepared, setIsPrepared } = useML();
+  const { prepConfig, setPrepConfig, dataset, setDataset, goToStep, datasetId, targetColumn, isPrepared, setIsPrepared } = useML();
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [prepStats, setPrepStats] = useState<any>(null);
@@ -21,22 +21,20 @@ export function DataPreparation() {
   const negativeOutcomes = prepStats ? prepStats.imbalance.after.negative : 0;
   
   const handlePreparation = async () => {
-      if (!datasetId) {
-          setErrorMsg("Dataset ID missing. Please reload the dataset in Step 2.");
-          return;
-      }
+      const effectiveId = datasetId || "live";
       const startedAt = Date.now();
       setIsProcessing(true);
       setErrorMsg("");
       try {
-          const response = await fetch(`http://localhost:3001/api/dataset/${datasetId}/prepare`, {
+          const response = await fetch(`/api/dataset/${effectiveId}/prepare`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ 
+              body: JSON.stringify({
                   missingValues: prepConfig.missingValues,
                   normalize: prepConfig.normalize,
                   imbalance: prepConfig.imbalance,
                   trainSplit: prepConfig.trainSplit,
+                  targetColumn,
                   dataset: dataset
               })
           });

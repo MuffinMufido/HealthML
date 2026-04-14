@@ -124,6 +124,7 @@ export function ModelParameters() {
     goToStep,
     dataset,
     datasetId,
+    targetColumn,
     prepConfig,
     latestTrainResult,
     setLatestTrainResult,
@@ -142,11 +143,7 @@ export function ModelParameters() {
     setProgress(15);
     setTrainError("");
     try {
-      const targetColumn = Object.keys(dataset[0] || {}).find((k) =>
-        ["outcome", "target", "class", "label", "diagnosis"].includes(k.toLowerCase())
-      ) || "outcome";
-
-      const response = await fetch(`http://localhost:3001/api/dataset/${datasetId || "live"}/train`, {
+      const response = await fetch(`/api/dataset/${datasetId || "live"}/train`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -155,6 +152,7 @@ export function ModelParameters() {
           modelType: modelConfig.type,
           params: modelConfig.params,
           trainSplit: prepConfig.trainSplit,
+          imbalance: prepConfig.imbalance,
         }),
       });
       setProgress(65);

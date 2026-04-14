@@ -19,6 +19,7 @@ export function Results() {
     goToStep,
     dataset,
     datasetId,
+    targetColumn,
     prepConfig,
     latestTrainResult,
     setLatestTrainResult,
@@ -54,10 +55,7 @@ export function Results() {
     setIsTraining(true);
     setErrorMsg("");
     try {
-      const targetColumn = Object.keys(dataset[0] || {}).find((k) =>
-        ["outcome", "target", "class", "label", "diagnosis"].includes(k.toLowerCase())
-      ) || "outcome";
-      const response = await fetch(`http://localhost:3001/api/dataset/${datasetId || "live"}/train`, {
+      const response = await fetch(`/api/dataset/${datasetId || "live"}/train`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -66,6 +64,7 @@ export function Results() {
           modelType: activeTab,
           params: { ...modelConfig.params, ...activeParams },
           trainSplit: prepConfig.trainSplit,
+          imbalance: prepConfig.imbalance,
         }),
       });
       if (!response.ok) {
