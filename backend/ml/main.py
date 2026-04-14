@@ -270,10 +270,15 @@ def prepare(req: PrepareRequest):
                 # Rebuild df_train with SMOTE rows
                 df_smote = pd.DataFrame(X_res, columns=numeric_cols)
                 df_smote[target_col] = y_res
-                # Restore non-numeric columns with majority value for synthetic rows
+                # Restore non-numeric columns: keep original values for real rows,
+                # use mode only for synthetic rows (n_orig onwards)
                 for col in df_train.columns:
                     if col not in numeric_cols and col != target_col:
-                        df_smote[col] = df_train[col].mode()[0] if len(df_train[col].mode()) > 0 else None
+                        mode_val = df_train[col].mode()[0] if len(df_train[col].mode()) > 0 else None
+                        orig_vals = df_train[col].reset_index(drop=True)
+                        df_smote[col] = None
+                        df_smote.loc[:n_orig - 1, col] = orig_vals.values
+                        df_smote.loc[n_orig:, col] = mode_val
                 # Tag synthetic rows so /train can keep them out of the test set
                 df_smote["__smote__"] = False
                 df_smote.loc[n_orig:, "__smote__"] = True
@@ -617,34 +622,40 @@ def fairness(modelId: str = Query(...)):
             mask = (df[gender_col] == group_val).values
             if mask.sum() < 5:
                 continue
-            m = compute_metrics(y_all[mask], y_prob_all[mask], 0.5)["metrics"]
-            st, fl = status_for_gap(overall_sensitivity - m["sensitivity"])
-            subgroups.append({
-                "group": str(group_val),
-                "accuracy": f"{round(m['accuracy'] * 100)}%",
-                "sensitivity": f"{round(m['sensitivity'] * 100)}%",
-                "specificity": f"{round(m['specificity'] * 100)}%",
-                "fairness": fl, "status": st,
-            })
+            try:
+                m = compute_metrics(y_all[mask], y_prob_all[mask], 0.5)["metrics"]
+                st, fl = status_for_gap(abs(overall_sensitivity - m["sensitivity"]))
+                subgroups.append({
+                    "group": str(group_val),
+                    "accuracy": f"{round(m['accuracy'] * 100)}%",
+                    "sensitivity": f"{round(m['sensitivity'] * 100)}%",
+                    "specificity": f"{round(m['specificity'] * 100)}%",
+                    "fairness": fl, "status": st,
+                })
+            except Exception:
+                pass
 
-    age_col = next((c for c in df.columns if c.lower() == "age"), None)
+    age_col = next((c for c in df.columns if c.lower() in ("age", "age_years", "patient_age")), None)
     if age_col:
         age_vals = pd.to_numeric(df[age_col], errors="coerce")
-        for name, band in [("Age 18–60", (age_vals >= 18) & (age_vals <= 60)),
-                           ("Age 61–75", (age_vals >= 61) & (age_vals <= 75)),
+        for name, band in [("Age 18-60", (age_vals >= 18) & (age_vals <= 60)),
+                           ("Age 61-75", (age_vals >= 61) & (age_vals <= 75)),
                            ("Age 76+",   age_vals > 75)]:
             mask = band.fillna(False).values
             if mask.sum() < 5:
                 continue
-            m = compute_metrics(y_all[mask], y_prob_all[mask], 0.5)["metrics"]
-            st, fl = status_for_gap(overall_sensitivity - m["sensitivity"])
-            subgroups.append({
-                "group": name,
-                "accuracy": f"{round(m['accuracy'] * 100)}%",
-                "sensitivity": f"{round(m['sensitivity'] * 100)}%",
-                "specificity": f"{round(m['specificity'] * 100)}%",
-                "fairness": fl, "status": st,
-            })
+            try:
+                m = compute_metrics(y_all[mask], y_prob_all[mask], 0.5)["metrics"]
+                st, fl = status_for_gap(abs(overall_sensitivity - m["sensitivity"]))
+                subgroups.append({
+                    "group": name,
+                    "accuracy": f"{round(m['accuracy'] * 100)}%",
+                    "sensitivity": f"{round(m['sensitivity'] * 100)}%",
+                    "specificity": f"{round(m['specificity'] * 100)}%",
+                    "fairness": fl, "status": st,
+                })
+            except Exception:
+                pass
 
     bad_groups = [s for s in subgroups if s["status"] == "bad"]
     bias_detected = len(bad_groups) > 0
