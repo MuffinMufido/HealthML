@@ -606,7 +606,7 @@ def fairness(modelId: str = Query(...)):
     overall_sensitivity = overall["sensitivity"]
 
     def status_for_gap(gap: float):
-        if gap > 0.10: return "bad", "⚠ Review Needed"
+        if gap > 0.10: return "bad", "[!] Review Needed"
         return "good", "OK"
 
     subgroups = []
@@ -686,6 +686,16 @@ def generate_certificate(req: CertRequest):
         def header(self): pass
         def footer(self): pass
 
+    def _s(text) -> str:
+        """Replace non-latin-1 chars so Helvetica (built-in) can render them."""
+        return (str(text)
+            .replace("\u2014", " - ").replace("\u2013", "-")
+            .replace("\u00b7", ".").replace("\u26a0", "[!]")
+            .replace("\u2605", "*").replace("\u2192", "->")
+            .replace("\u2265", ">=").replace("\u2264", "<=")
+            .replace("\u2248", "~").replace("\u00d7", "x")
+        )
+
     pdf = PDF(orientation="P", unit="mm", format="A4")
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
@@ -697,27 +707,27 @@ def generate_certificate(req: CertRequest):
         pdf.set_fill_color(13, 35, 64)
         pdf.set_text_color(255, 255, 255)
         pdf.set_font("Helvetica", "B", 10)
-        pdf.cell(W, 7, title, fill=True, ln=True)
+        pdf.cell(W, 7, _s(title), fill=True, ln=True)
         pdf.ln(1)
 
     def metric_row(label: str, val: str, desc: str, color=(30, 30, 30)):
         pdf.set_font("Helvetica", "B", 10)
         pdf.set_text_color(70, 70, 70)
-        pdf.cell(52, 6, label + ":")
+        pdf.cell(52, 6, _s(label) + ":")
         pdf.set_font("Helvetica", "B", 10)
         pdf.set_text_color(*color)
-        pdf.cell(18, 6, val)
+        pdf.cell(18, 6, _s(val))
         pdf.set_font("Helvetica", "", 8)
         pdf.set_text_color(110, 110, 110)
-        pdf.cell(0, 6, desc, ln=True)
+        pdf.cell(0, 6, _s(desc), ln=True)
 
     def data_row(label: str, val: str):
         pdf.set_font("Helvetica", "B", 9)
         pdf.set_text_color(80, 80, 80)
-        pdf.cell(52, 6, label + ":")
+        pdf.cell(52, 6, _s(label) + ":")
         pdf.set_font("Helvetica", "", 9)
         pdf.set_text_color(30, 30, 30)
-        pdf.multi_cell(0, 6, val)
+        pdf.multi_cell(W - 52, 6, _s(val))
 
     # ── HEADER ──────────────────────────────────────────────────────────────
     pdf.set_fill_color(13, 35, 64)
@@ -725,17 +735,17 @@ def generate_certificate(req: CertRequest):
     pdf.set_xy(18, 7)
     pdf.set_font("Helvetica", "B", 15)
     pdf.set_text_color(255, 255, 255)
-    pdf.cell(0, 6, "HealthML — Model Summary Certificate", ln=True)
+    pdf.cell(0, 6, "HealthML - Model Summary Certificate", ln=True)
     pdf.set_xy(18, 14)
     pdf.set_font("Helvetica", "", 8)
     pdf.set_text_color(180, 210, 240)
-    pdf.cell(0, 5, "Educational ML Visualisation Tool  ·  For Healthcare Professionals / Students", ln=True)
+    pdf.cell(0, 5, "Educational ML Visualisation Tool  |  For Healthcare Professionals / Students", ln=True)
     pdf.ln(10)
 
     # Metadata
     pdf.set_font("Helvetica", "", 9)
     pdf.set_text_color(100, 100, 100)
-    pdf.cell(0, 5, f"Generated: {now_full}    Specialty: {req.specialty or 'Not specified'}    Model: {req.modelType or '—'}", ln=True)
+    pdf.cell(0, 5, _s(f"Generated: {now_full}    Specialty: {req.specialty or 'Not specified'}    Model: {req.modelType or 'N/A'}"), ln=True)
     pdf.set_draw_color(200, 200, 200)
     pdf.line(18, pdf.get_y() + 1, 192, pdf.get_y() + 1)
     pdf.ln(5)
@@ -743,16 +753,16 @@ def generate_certificate(req: CertRequest):
     # ── SECTION 1: DATASET ──────────────────────────────────────────────────
     section_title("1  DATASET & TRAINING SETUP")
     data_row("Specialty", req.specialty or "Not specified")
-    data_row("Model type", req.modelType or "—")
-    tc = req.split.get("trainCount", "—")
-    tp = req.split.get("trainPct", "—")
-    te = req.split.get("testCount", "—")
+    data_row("Model type", req.modelType or "N/A")
+    tc = req.split.get("trainCount", "N/A")
+    tp = req.split.get("trainPct", "N/A")
+    te = req.split.get("testCount", "N/A")
     data_row("Training patients", f"{tc}  ({tp}% of dataset)")
-    data_row("Test patients", f"{te}  ({100 - int(tp) if tp != '—' else '—'}%  — never seen during training)")
+    data_row("Test patients", f"{te}  ({100 - int(tp) if tp not in ('N/A', '') else 'N/A'}%  - never seen during training)")
     lat = req.trainingLatencyMs
     data_row("Training latency", f"{lat} ms  (target < 3 000 ms)")
     if req.featureColumns:
-        data_row("Features used", "  ·  ".join(req.featureColumns[:12]))
+        data_row("Features used", " / ".join(req.featureColumns[:12]))
     pdf.ln(3)
 
     # ── SECTION 2: METRICS ──────────────────────────────────────────────────
@@ -768,7 +778,7 @@ def generate_certificate(req: CertRequest):
 
     rows = [
         ("Accuracy",    m.get("accuracy"),    "% correctly classified"),
-        ("Sensitivity", m.get("sensitivity"), "% of truly positive patients caught  ★ most critical"),
+        ("Sensitivity", m.get("sensitivity"), "% of truly positive patients caught  [*] most critical"),
         ("Specificity", m.get("specificity"), "% of truly negative patients correctly cleared"),
         ("Precision",   m.get("precision"),   "% of flagged patients who actually had condition"),
         ("F1 Score",    m.get("f1"),          "Balance between sensitivity and precision"),
@@ -777,7 +787,7 @@ def generate_certificate(req: CertRequest):
     for label, val, desc in rows:
         if val is None: continue
         pct = f"{val:.2f}" if label == "AUC-ROC" else f"{val*100:.1f}%"
-        color = metric_color(label.lower().replace(" ", "").replace("-", "").replace("★", "").strip(), val)
+        color = metric_color(label.lower().replace(" ", "").replace("-", "").replace("[*]", "").strip(), val)
         metric_row(label, pct, desc, color)
     pdf.ln(3)
 
@@ -811,12 +821,12 @@ def generate_certificate(req: CertRequest):
     cm_cell(tp_val, "True Positive", 220, 252, 231)
     pdf.ln()
     pdf.set_font("Helvetica", "", 7); pdf.set_text_color(60, 60, 60)
-    pdf.cell(col_w, 4, "  MISSED CASE ⚠"); pdf.cell(col_w, 4, "  Correctly flagged", ln=True)
+    pdf.cell(col_w, 4, "  MISSED CASE [!]"); pdf.cell(col_w, 4, "  Correctly flagged", ln=True)
     if fn > 0:
         pdf.ln(1)
         pdf.set_font("Helvetica", "B", 8)
         pdf.set_text_color(153, 27, 27)
-        pdf.multi_cell(W, 5, f"⚠  {fn} patient(s) missed (False Negatives) — most dangerous errors in screening.")
+        pdf.multi_cell(W, 5, f"[!]  {fn} patient(s) missed (False Negatives) - most dangerous errors in screening.")
     pdf.ln(3)
 
     # ── SECTION 4: FAIRNESS ─────────────────────────────────────────────────
@@ -835,20 +845,20 @@ def generate_certificate(req: CertRequest):
             pdf.set_fill_color(250, 251, 252)
             color = (22, 101, 52) if s.status == "good" else (153, 27, 27)
             pdf.set_font("Helvetica", "", 8); pdf.set_text_color(40, 40, 40)
-            pdf.cell(50, 6, s.group, fill=fill)
-            pdf.cell(30, 6, s.accuracy, fill=fill)
+            pdf.cell(50, 6, _s(s.group), fill=fill)
+            pdf.cell(30, 6, _s(s.accuracy), fill=fill)
             pdf.set_text_color(*color); pdf.set_font("Helvetica", "B", 8)
-            pdf.cell(30, 6, s.sensitivity, fill=fill)
+            pdf.cell(30, 6, _s(s.sensitivity), fill=fill)
             pdf.set_font("Helvetica", "", 8); pdf.set_text_color(40, 40, 40)
-            pdf.cell(30, 6, s.specificity, fill=fill)
+            pdf.cell(30, 6, _s(s.specificity), fill=fill)
             pdf.set_text_color(*color)
-            pdf.cell(0, 6, s.fairness, fill=fill, ln=True)
+            pdf.cell(0, 6, _s(s.fairness), fill=fill, ln=True)
         pdf.ln(2)
         if req.biasDetected:
             pdf.set_fill_color(254, 226, 226)
             pdf.set_text_color(153, 27, 27)
             pdf.set_font("Helvetica", "B", 8)
-            pdf.multi_cell(W, 5, f"BIAS DETECTED: {req.biasMessage}", fill=True)
+            pdf.multi_cell(W, 5, _s(f"BIAS DETECTED: {req.biasMessage}"), fill=True)
         else:
             pdf.set_fill_color(220, 252, 231)
             pdf.set_text_color(22, 101, 52)
@@ -857,7 +867,7 @@ def generate_certificate(req: CertRequest):
     else:
         pdf.set_font("Helvetica", "", 9)
         pdf.set_text_color(100, 100, 100)
-        pdf.cell(0, 6, "No subgroup data — no gender or age columns detected.", ln=True)
+        pdf.cell(0, 6, "No subgroup data - no gender or age columns detected.", ln=True)
     pdf.ln(3)
 
     # ── SECTION 5: CHECKLIST ────────────────────────────────────────────────
@@ -876,7 +886,7 @@ def generate_certificate(req: CertRequest):
         pdf.cell(10, 6, mark, fill=True)
         pdf.set_text_color(30, 30, 30)
         pdf.set_font("Helvetica", "B" if is_checked else "", 9)
-        pdf.multi_cell(W - 10, 6, item.text, fill=True)
+        pdf.multi_cell(W - 10, 6, _s(item.text), fill=True)
         pdf.ln(0.5)
     pdf.ln(3)
 
@@ -886,7 +896,7 @@ def generate_certificate(req: CertRequest):
     pdf.ln(3)
     pdf.set_font("Helvetica", "", 7)
     pdf.set_text_color(130, 130, 130)
-    pdf.multi_cell(W, 4, "This certificate was generated by HealthML — an educational tool for healthcare professionals and students. "
+    pdf.multi_cell(W, 4, "This certificate was generated by HealthML - an educational tool for healthcare professionals and students. "
                          "It is NOT a clinical report and must NOT be used for diagnosis, treatment, or patient care decisions. "
                          "Always seek qualified medical oversight before acting on any AI prediction.")
 
