@@ -7,7 +7,7 @@ import Papa from 'papaparse';
 
 const router = Router();
 
-const ML_HOST = 'localhost';
+const ML_HOST = process.env.ML_HOST || 'localhost';
 const ML_PORT = 8000;
 
 function postToML(mlPath: string, body: any): Promise<any> {

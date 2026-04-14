@@ -54,7 +54,8 @@
     "zod": "^4.3.6"
   },
   "scripts": {
-    "dev": "vite"
+    "dev": "vite",
+    "build": "vite build"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.1",
