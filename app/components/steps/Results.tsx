@@ -8,7 +8,7 @@ const modelNames: Record<ModelType, string> = {
   decisionTree: "Decision Tree",
   randomForest: "Random Forest",
   logistic: "Logistic Reg.",
-  neuralNet: "Neural Network",
+  naiveBayes: "Naive Bayes",
 };
 
 export function Results() {
@@ -37,7 +37,7 @@ export function Results() {
   const [rfTrees, setRfTrees] = useState(100);
   const [dtDepth, setDtDepth] = useState(5);
   const [logRegIterations, setLogRegIterations] = useState(500);
-  const [nnLearningRate, setNnLearningRate] = useState(0.01);
+  const [nbVarSmoothing, setNbVarSmoothing] = useState(1);
   const [debouncePending, setDebouncePending] = useState(false);
   const [debounceMeasuredMs, setDebounceMeasuredMs] = useState<number | null>(null);
 
@@ -47,9 +47,9 @@ export function Results() {
     if (activeTab === "randomForest") return { trees: rfTrees };
     if (activeTab === "decisionTree") return { depth: dtDepth };
     if (activeTab === "logistic") return { iterations: logRegIterations };
-    if (activeTab === "neuralNet") return { learningRate: nnLearningRate };
+    if (activeTab === "naiveBayes") return { varSmoothing: nbVarSmoothing };
     return modelConfig.params || {};
-  }, [activeTab, knnK, svmC, rfTrees, dtDepth, logRegIterations, nnLearningRate, modelConfig.params]);
+  }, [activeTab, knnK, svmC, rfTrees, dtDepth, logRegIterations, nbVarSmoothing, modelConfig.params]);
 
   const handleTrain = async () => {
     setIsTraining(true);
@@ -99,7 +99,7 @@ export function Results() {
       setDebouncePending(false);
     }, 300);
     return () => clearTimeout(timer);
-  }, [activeTab, knnK, svmC, rfTrees, dtDepth, logRegIterations, nnLearningRate, autoRetrain]);
+  }, [activeTab, knnK, svmC, rfTrees, dtDepth, logRegIterations, nbVarSmoothing, autoRetrain]);
 
   const metricClass = (key: keyof NonNullable<typeof latestTrainResult>["metrics"], value: number) => {
     const t = latestTrainResult?.thresholds?.[key];
@@ -116,7 +116,7 @@ export function Results() {
       case "decisionTree": return <span><b>Decision Tree</b> — Learns a series of yes/no questions to split patients into groups. Easy to interpret but prone to over-memorising the training data.</span>;
       case "randomForest": return <span><b>Random Forest</b> — A team of many decision trees. Each tree gets a random subset of data and votes. Highly accurate and robust to noise.</span>;
       case "logistic": return <span><b>Logistic Regression</b> — Calculates a baseline risk and adds/subtracts weight for every measurement. The gold standard for clinical risk scores.</span>;
-      case "neuralNet": return <span><b>Neural Network</b> — A complex web of mathematical functions loosely inspired by the brain. Powerful for complex patterns but hard to interpret ("black box").</span>;
+      case "naiveBayes": return <span><b>Naive Bayes</b> — Uses probability theory to estimate how likely each outcome is, given a patient's measurements. Very fast and transparent. Good for seeing quick, interpretable results.</span>;
     }
   };
 
@@ -231,7 +231,7 @@ export function Results() {
               </div>
             )}
 
-            {["decisionTree", "logistic", "neuralNet"].includes(activeTab) && (
+            {["decisionTree", "logistic", "naiveBayes"].includes(activeTab) && (
               <>
                 {activeTab === "decisionTree" && (
                   <div>
@@ -251,18 +251,19 @@ export function Results() {
                     </div>
                   </div>
                 )}
-                {activeTab === "neuralNet" && (
+                {activeTab === "naiveBayes" && (
                   <div>
-                    <label className="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-3">Learning Rate</label>
+                    <label className="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-3">Variance Smoothing (×10⁻⁹)</label>
                     <div className="flex items-center gap-4 mb-2">
-                      <input type="range" min="0.001" max="0.1" step="0.001" value={nnLearningRate} onChange={(e) => setNnLearningRate(Number(e.target.value))} className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-                      <div className="w-14 text-right font-medium text-slate-700">{nnLearningRate.toFixed(3)}</div>
+                      <input type="range" min="1" max="100" step="1" value={nbVarSmoothing} onChange={(e) => setNbVarSmoothing(Number(e.target.value))} className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                      <div className="w-14 text-right font-medium text-slate-700">{nbVarSmoothing}</div>
                     </div>
+                    <div className="text-[11px] text-slate-500 mt-1">Controls numerical stability. Rarely needs changing — leave at 1 unless you see errors.</div>
                   </div>
                 )}
                 <div className="bg-blue-50 p-4 rounded-lg flex gap-3 text-blue-800 text-[13px] border border-blue-200">
                   <Info className="w-4 h-4 shrink-0 mt-0.5 text-blue-600" />
-                  <p>These controls are now active and included in training requests for all 6 models.</p>
+                  <p>These controls are active and included in training requests for all 6 models.</p>
                 </div>
               </>
             )}

@@ -134,6 +134,26 @@ export function Explainability() {
                 <span className="font-bold">How it works:</span> Feature importance is computed from the actual trained model — tree-based models use built-in impurity reduction; linear models use coefficient magnitude; others use permutation importance on the test set.
               </div>
             </div>
+
+            {explainData && explainData.globalFeatures.length > 0 && (
+              <div className="flex items-start gap-3 p-3 bg-teal-50 border border-teal-200 rounded-xl">
+                <Lightbulb className="w-5 h-5 text-teal-600 mt-0.5 shrink-0" />
+                <div className="text-[13px] text-teal-900">
+                  <span className="font-bold">Clinical sense-check:</span> The top-ranked feature is <span className="font-semibold capitalize">{explainData.globalFeatures[0]?.label}</span>.{" "}
+                  {(() => {
+                    const top = (explainData.globalFeatures[0]?.label ?? "").toLowerCase();
+                    if (top.includes("age")) return "Age is a well-established risk factor in most clinical domains — this is consistent with medical literature.";
+                    if (top.includes("ejection") || top.includes("ef")) return "Ejection fraction is a key indicator of heart function — its top ranking is clinically expected for cardiac outcomes.";
+                    if (top.includes("creatinine") || top.includes("serum")) return "Serum creatinine reflects kidney function and is a recognised predictor of adverse outcomes.";
+                    if (top.includes("glucose") || top.includes("blood_glucose")) return "Blood glucose is a primary driver of diabetic outcomes — clinically expected to rank highly.";
+                    if (top.includes("bmi") || top.includes("weight")) return "BMI and weight are established risk factors across many chronic disease pathways.";
+                    if (top.includes("bp") || top.includes("blood_pressure") || top.includes("hypertension")) return "Blood pressure is a core cardiovascular risk factor — expected to rank highly in cardiac and stroke models.";
+                    if (top.includes("smoking") || top.includes("tobacco")) return "Smoking status is a well-documented predictor across respiratory, cardiac, and oncology domains.";
+                    return "Review this feature against established clinical guidelines for your specialty to confirm it represents a known risk factor.";
+                  })()}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">

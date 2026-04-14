@@ -99,19 +99,17 @@ const models: {
       ],
     },
     {
-      id: "neuralNet",
-      name: "Neural Network",
+      id: "naiveBayes",
+      name: "Naive Bayes",
       icon: Network,
       color: "text-red-600",
       bg: "bg-red-50 border-red-200",
       description:
-        "Inspired by the human brain, this model uses layers of interconnected 'neurons' to learn complex patterns in data.",
+        "Uses probability theory to estimate how likely each outcome is, given a patient's measurements. Very fast and transparent.",
       analogy:
-        "Like a brain learning from thousands of patient records, forming connections that become expertise.",
+        "Like asking: 'Given this patient's age and blood pressure, what is the probability of readmission based on past patients?'",
       params: [
-        { key: "hiddenLayers", label: "Hidden Layers", min: 1, max: 5, step: 1, default: 2 },
-        { key: "neurons", label: "Neurons per Layer", min: 4, max: 128, step: 4, default: 32 },
-        { key: "learningRate", label: "Learning Rate", min: 0.001, max: 0.1, step: 0.001, default: 0.01 },
+        { key: "varSmoothing", label: "Variance Smoothing (×10⁻⁹)", min: 1, max: 100, step: 1, default: 1 },
       ],
     },
   ];
@@ -471,32 +469,30 @@ export function ModelParameters() {
           </div>
         );
       }
-      case "neuralNet": {
+      case "naiveBayes": {
         return (
           <div className="space-y-4">
-            <p className="text-[13px] text-slate-500 mb-2">Neural networks create complex, non-linear boundaries by passing data through layers of neurons.</p>
-            <div className="w-full aspect-video bg-slate-900 rounded-xl border border-slate-700 relative overflow-hidden flex items-center justify-center">
-              <div className="animate-pulse flex items-center gap-4">
-                <div className="flex flex-col gap-4">
-                  <div className="w-4 h-4 rounded-full bg-blue-500 shadow-[0_0_10px_#3b82f6]"></div>
-                  <div className="w-4 h-4 rounded-full bg-blue-500 shadow-[0_0_10px_#3b82f6]"></div>
-                </div>
-                <div className="w-8 h-0.5 bg-slate-700"></div>
-                <div className="flex flex-col gap-2">
-                  <div className="w-4 h-4 rounded-full bg-purple-500 shadow-[0_0_10px_#a855f7]"></div>
-                  <div className="w-4 h-4 rounded-full bg-purple-500 shadow-[0_0_10px_#a855f7]"></div>
-                  <div className="w-4 h-4 rounded-full bg-purple-500 shadow-[0_0_10px_#a855f7]"></div>
-                </div>
-                <div className="w-8 h-0.5 bg-slate-700"></div>
-                <div className="flex flex-col gap-4">
-                  <div className="w-4 h-4 rounded-full bg-red-500 shadow-[0_0_10px_#ef4444]"></div>
-                </div>
-              </div>
-            </div>
+            <p className="text-[13px] text-slate-500 mb-2">Naive Bayes calculates the probability of each outcome for each feature value independently, then combines them.</p>
+            <svg className="w-full" viewBox="0 0 300 160" style={{ border: "1px solid #e2e8f0", borderRadius: "12px", background: "#f7f9fb" }}>
+              {/* Axes */}
+              <line x1="40" y1="10" x2="40" y2="140" stroke="#cbd5e1" strokeWidth="1" />
+              <line x1="40" y1="140" x2="280" y2="140" stroke="#cbd5e1" strokeWidth="1" />
+              <text x="150" y="155" textAnchor="middle" fill="#64748b" fontSize="8">Measurement value</text>
+              <text x="10" y="80" textAnchor="middle" fill="#64748b" fontSize="8" transform="rotate(-90,10,80)">P(class)</text>
+              {/* Negative class bell */}
+              <path d="M50,135 Q80,135 100,60 Q120,135 150,135" fill="none" stroke="#3b82f6" strokeWidth="2" />
+              <text x="100" y="55" textAnchor="middle" fill="#3b82f6" fontSize="8" fontWeight="bold">Not Readmitted</text>
+              {/* Positive class bell */}
+              <path d="M130,135 Q160,135 190,50 Q220,135 260,135" fill="none" stroke="#ef4444" strokeWidth="2" />
+              <text x="195" y="45" textAnchor="middle" fill="#ef4444" fontSize="8" fontWeight="bold">Readmitted</text>
+              {/* Decision boundary */}
+              <line x1="152" y1="20" x2="152" y2="140" stroke="#64748b" strokeWidth="1" strokeDasharray="3,2" />
+              <text x="157" y="30" fill="#64748b" fontSize="7">Decision boundary</text>
+            </svg>
             <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-xl mt-3">
               <span className="text-blue-600 mt-0.5 shrink-0 text-lg">ℹ️</span>
               <div className="text-[13px] text-blue-900">
-                Neural networks act as a "black box". They are highly accurate but reconstructing a visual decision boundary in 2D space often obscures the actual math happening across dozens of dimensions.
+                <span className="font-bold">Clinical meaning:</span> Each bell curve shows the distribution of a measurement for each outcome group. Where the curves overlap is the uncertain zone — the model uses probability to decide which side of the boundary a new patient falls on.
               </div>
             </div>
           </div>

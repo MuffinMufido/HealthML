@@ -31,7 +31,7 @@ export interface PrepConfig {
   imbalance: "smote" | "weights" | "none";
 }
 
-export type ModelType = "logistic" | "decisionTree" | "randomForest" | "svm" | "knn" | "neuralNet";
+export type ModelType = "logistic" | "decisionTree" | "randomForest" | "svm" | "knn" | "naiveBayes";
 
 export interface ModelConfig {
   type: ModelType;

@@ -20,7 +20,7 @@ from sklearn.inspection import permutation_importance
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import auc as sklearn_auc, roc_curve
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.neural_network import MLPClassifier
+from sklearn.naive_bayes import GaussianNB
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
@@ -98,15 +98,9 @@ def build_model(model_type: str, params: dict, class_weight=None):
         k = max(1, min(25, int(params.get("k", 5))))
         return KNeighborsClassifier(n_neighbors=k)  # KNN has no class_weight
 
-    if model_type == "neuralNet":
-        lr = max(1e-4, float(params.get("learningRate", 0.01)))
-        hidden = max(1, int(params.get("hiddenLayers", 1)))
-        return MLPClassifier(
-            hidden_layer_sizes=tuple([64] * hidden),
-            learning_rate_init=lr,
-            max_iter=500,
-            random_state=42,
-        )  # MLPClassifier has no class_weight
+    if model_type == "naiveBayes":
+        var_smoothing = max(1e-12, float(params.get("varSmoothing", 1)) * 1e-9)
+        return GaussianNB(var_smoothing=var_smoothing)  # GaussianNB has no class_weight
 
     return RandomForestClassifier(n_estimators=100, max_depth=5, random_state=42, class_weight=class_weight)
 
@@ -385,6 +379,9 @@ def train(req: TrainRequest):
         "feature_cols": feature_cols,
         "X_train_sc": X_train_sc,
         "X_test_sc": X_test_sc,
+        "X_test_raw": X_test,
+        "X_train_mean": X_train.mean(axis=0),
+        "X_train_std": X_train.std(axis=0) + 1e-9,
         "y_test": y_test,
         "y_prob": y_prob,
         "df_full": df_clean,
@@ -418,6 +415,19 @@ def train(req: TrainRequest):
     }
 
 
+def _pretty_name(col: str) -> str:
+    """Convert snake_case column name to Title Case with spaces."""
+    return col.replace("_", " ").replace("-", " ").title()
+
+
+def _qualitative(z: float) -> str:
+    if z < -1.5: return "very low"
+    if z < -0.5: return "low"
+    if z <= 0.5: return "average"
+    if z <= 1.5: return "high"
+    return "very high"
+
+
 def _global_importance(entry: dict) -> list:
     model = entry["model"]
     feature_cols = entry["feature_cols"]
@@ -443,41 +453,45 @@ def _global_importance(entry: dict) -> list:
     for i in order[:6]:
         val = float(norm[i])
         pct_int = round(val / max_val * 100) if max_val > 0 else 0
-        result.append({"label": feature_cols[i], "value": round(val, 3), "pct": f"{pct_int}%"})
+        result.append({"label": _pretty_name(feature_cols[i]), "value": round(val, 3), "pct": f"{pct_int}%"})
     return result
 
 
 def _patient_explanations(entry: dict) -> list:
     model = entry["model"]
-    X_test = entry["X_test_sc"]
+    X_test_sc = entry["X_test_sc"]
+    X_test_raw = entry["X_test_raw"]
     y_prob = entry["y_prob"]
     feature_cols = entry["feature_cols"]
-    X_means = entry["X_train_sc"].mean(axis=0)
+    X_means_sc = entry["X_train_sc"].mean(axis=0)
+    X_train_mean = entry["X_train_mean"]
+    X_train_std = entry["X_train_std"]
 
-    if len(X_test) == 0:
+    if len(X_test_sc) == 0:
         return []
 
-    high_idx  = np.where(y_prob > 0.65)[0]
-    low_idx   = np.where(y_prob < 0.35)[0]
+    high_idx   = np.where(y_prob > 0.65)[0]
+    low_idx    = np.where(y_prob < 0.35)[0]
     border_idx = np.where((y_prob >= 0.40) & (y_prob <= 0.60))[0]
     sorted_desc = np.argsort(y_prob)[::-1]
 
     candidates = {
-        "HIGH RISK": int(high_idx[0])   if len(high_idx)   else int(sorted_desc[0]),
-        "LOW RISK":  int(low_idx[0])    if len(low_idx)    else int(sorted_desc[-1]),
-        "MODERATE":  int(border_idx[0]) if len(border_idx) else int(sorted_desc[len(sorted_desc) // 2]),
+        "HIGH RISK": int(high_idx[0])    if len(high_idx)    else int(sorted_desc[0]),
+        "LOW RISK":  int(low_idx[0])     if len(low_idx)     else int(sorted_desc[-1]),
+        "MODERATE":  int(border_idx[0])  if len(border_idx)  else int(sorted_desc[len(sorted_desc) // 2]),
     }
 
     patients = []
     for risk_label, idx in candidates.items():
-        patient = X_test[idx]
+        patient_sc = X_test_sc[idx]
+        patient_raw = X_test_raw[idx]
         prob = float(y_prob[idx])
-        base_prob = model.predict_proba([patient])[0][1]
+        base_prob = model.predict_proba([patient_sc])[0][1]
 
         contributions = []
         for feat_i, feat_name in enumerate(feature_cols):
-            modified = patient.copy()
-            modified[feat_i] = X_means[feat_i]
+            modified = patient_sc.copy()
+            modified[feat_i] = X_means_sc[feat_i]
             ablated = model.predict_proba([modified])[0][1]
             contributions.append((feat_i, feat_name, float(base_prob - ablated)))
 
@@ -488,25 +502,35 @@ def _patient_explanations(entry: dict) -> list:
             max_abs = 1e-9
 
         bars = []
-        for _, feat_name, contrib in top5:
+        for feat_i, feat_name, contrib in top5:
             is_bad = contrib > 0
             pct_int = round(abs(contrib) / max_abs * 80)
-            direction = "↑" if is_bad else "↓"
+            raw_val = float(patient_raw[feat_i])
+            z = (raw_val - float(X_train_mean[feat_i])) / float(X_train_std[feat_i])
+            descriptor = _qualitative(z)
+            pretty = _pretty_name(feat_name)
+            # Format value: if it looks like a proportion (0–1), show as %; else round to 1 dp
+            if 0.0 <= raw_val <= 1.0 and float(X_train_mean[feat_i]) <= 1.0:
+                val_display = f"{round(raw_val * 100)}%"
+            else:
+                val_display = f"{raw_val:.1f}"
+            label = f"{pretty} — {descriptor} ({val_display})"
             val_str = f"+{contrib:.3f}" if contrib >= 0 else f"{contrib:.3f}"
             bars.append({
-                "label": f"{direction} {feat_name}",
+                "label": label,
                 "val": val_str,
                 "pct": f"{pct_int}%",
                 "type": "bad" if is_bad else "good",
             })
 
+        top_pretty = _pretty_name(top5[0][1]) if top5 else "Unknown"
         if top5 and top5[0][2] > 0:
-            fname, drop_pct = top5[0][1], round(abs(top5[0][2]) * 100)
-            info = (f"The feature '{fname}' most strongly increases risk. "
-                    f"Adjusting it toward the population average would reduce "
-                    f"predicted risk by approximately {drop_pct} percentage points.")
+            drop_pct = round(abs(top5[0][2]) * 100)
+            info = (f"'{top_pretty}' most strongly increases this patient's risk. "
+                    f"If it were closer to the population average, predicted risk would "
+                    f"fall by approximately {drop_pct} percentage points.")
         elif top5:
-            info = f"The feature '{top5[0][1]}' most strongly protects against risk for this patient."
+            info = f"'{top_pretty}' most strongly protects against risk for this patient — it is pulling the prediction toward a safe outcome."
         else:
             info = "No dominant feature identified."
 
@@ -514,7 +538,7 @@ def _patient_explanations(entry: dict) -> list:
             "index": idx,
             "risk": risk_label,
             "prob": f"{round(prob * 100)}%",
-            "summary": f"Test Patient {idx + 1} · Prediction: {risk_label} ({round(prob * 100)}%)",
+            "summary": f"Test Patient {idx + 1} · {risk_label} ({round(prob * 100)}%)",
             "bars": bars,
             "info": info,
         })
