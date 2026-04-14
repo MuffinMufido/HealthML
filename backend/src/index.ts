@@ -23,6 +23,7 @@ if (!fs.existsSync(uploadsDir)) {
 // Routes
 app.use('/api/dataset', datasetRoutes);
 app.use('/api/ml', mlRoutes);
+app.use('/api', mlRoutes); // spec alias: POST /api/generate-certificate
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'ML Tool Backend is running' });
