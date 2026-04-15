@@ -638,9 +638,23 @@ def fairness(modelId: str = Query(...)):
     age_col = next((c for c in df.columns if c.lower() in ("age", "age_years", "patient_age")), None)
     if age_col:
         age_vals = pd.to_numeric(df[age_col], errors="coerce")
-        for name, band in [("Age 18-60", (age_vals >= 18) & (age_vals <= 60)),
-                           ("Age 61-75", (age_vals >= 61) & (age_vals <= 75)),
-                           ("Age 76+",   age_vals > 75)]:
+        age_max = age_vals.max()
+        # If age is normalized (e.g. z-score or minmax), use quantile splits
+        if age_max < 10:
+            q33 = age_vals.quantile(0.33)
+            q66 = age_vals.quantile(0.66)
+            bands = [
+                ("Age (younger third)",  age_vals <= q33),
+                ("Age (middle third)",   (age_vals > q33) & (age_vals <= q66)),
+                ("Age (older third)",    age_vals > q66),
+            ]
+        else:
+            bands = [
+                ("Age 18-60", (age_vals >= 18) & (age_vals <= 60)),
+                ("Age 61-75", (age_vals >= 61) & (age_vals <= 75)),
+                ("Age 76+",   age_vals > 75),
+            ]
+        for name, band in bands:
             mask = band.fillna(False).values
             if mask.sum() < 5:
                 continue

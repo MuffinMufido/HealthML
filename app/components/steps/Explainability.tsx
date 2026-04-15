@@ -110,7 +110,10 @@ export function Explainability() {
 
   useEffect(() => {
     const modelId = latestTrainResult?.modelId;
-    if (!trained || !modelId) return;
+    if (!trained || !modelId) {
+      setExplainData(null);
+      return;
+    }
 
     setLoading(true);
     setError("");
