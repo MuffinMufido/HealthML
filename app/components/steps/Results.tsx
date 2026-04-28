@@ -306,6 +306,51 @@ export function Results() {
                 <span className="text-[13px] text-blue-800 font-medium">Training {modelNames[activeTab]}...</span>
               </div>
             )}
+            {/* TODO: Add hardcoded results here visualizaiton */}
+
+            <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+              <h3 className="text-slate-900 font-medium">Model Comparison</h3>
+              <div className="overflow-x-auto rounded-lg border border-slate-200">
+                <table className="w-full text-left text-[13px]">
+                  <thead className="bg-slate-50 text-slate-600 border-b border-slate-200">
+                    <tr>
+                      <th className="p-3 font-medium">Model</th>
+                      <th className="p-3 font-medium">Accuracy</th>
+                      <th className="p-3 font-medium text-orange-600">Sensitivity ★</th>
+                      <th className="p-3 font-medium">Specificity</th>
+                      <th className="p-3 font-medium">AUC</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {(Object.keys(comparedResults) as ModelType[]).map((modelId) => {
+                      const r = comparedResults[modelId];
+                      if (!r) return null; // Safe check
+                      return (
+                        <tr key={modelId} className={activeTab === modelId ? "bg-blue-50/50" : ""}>
+                          <td className="p-3 font-medium">{modelNames[modelId]}</td>
+                          <td className="p-3">{Math.round(r.metrics.accuracy * 100)}%</td>
+                          <td className={`p-3 font-bold ${r.metrics.sensitivity < 0.5 ? "text-red-600" : "text-orange-600"}`}>
+                            {Math.round(r.metrics.sensitivity * 100)}%
+                          </td>
+                          <td className="p-3">{Math.round(r.metrics.specificity * 100)}%</td>
+                          <td className="p-3">{r.metrics.auc.toFixed(2)}</td>
+                        </tr>
+                      )
+                    })}
+                    {Object.keys(comparedResults).length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="p-6 text-center text-slate-400">Train a model to see comparative results.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div className="text-[11px] text-slate-500 mt-2">
+                <span className="text-orange-600 font-bold pr-1">★ Sensitivity</span>
+                = how many of the truly positive patients did the model catch? This is the most important metric in screening.
+              </div>
+            </div>
+
 
           </div>
         </div>
@@ -445,48 +490,7 @@ export function Results() {
             </div>
           )}
 
-          <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
-            <h3 className="text-slate-900 font-medium">Model Comparison</h3>
-            <div className="overflow-x-auto rounded-lg border border-slate-200">
-              <table className="w-full text-left text-[13px]">
-                <thead className="bg-slate-50 text-slate-600 border-b border-slate-200">
-                  <tr>
-                    <th className="p-3 font-medium">Model</th>
-                    <th className="p-3 font-medium">Accuracy</th>
-                    <th className="p-3 font-medium text-orange-600">Sensitivity ★</th>
-                    <th className="p-3 font-medium">Specificity</th>
-                    <th className="p-3 font-medium">AUC</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {(Object.keys(comparedResults) as ModelType[]).map((modelId) => {
-                    const r = comparedResults[modelId];
-                    if (!r) return null; // Safe check
-                    return (
-                      <tr key={modelId} className={activeTab === modelId ? "bg-blue-50/50" : ""}>
-                        <td className="p-3 font-medium">{modelNames[modelId]}</td>
-                        <td className="p-3">{Math.round(r.metrics.accuracy * 100)}%</td>
-                        <td className={`p-3 font-bold ${r.metrics.sensitivity < 0.5 ? "text-red-600" : "text-orange-600"}`}>
-                          {Math.round(r.metrics.sensitivity * 100)}%
-                        </td>
-                        <td className="p-3">{Math.round(r.metrics.specificity * 100)}%</td>
-                        <td className="p-3">{r.metrics.auc.toFixed(2)}</td>
-                      </tr>
-                    )
-                  })}
-                  {Object.keys(comparedResults).length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="p-6 text-center text-slate-400">Train a model to see comparative results.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <div className="text-[11px] text-slate-500 mt-2">
-              <span className="text-orange-600 font-bold pr-1">★ Sensitivity</span>
-              = how many of the truly positive patients did the model catch? This is the most important metric in screening.
-            </div>
-          </div>
+
 
         </div>
       </div>
