@@ -1,0 +1,9 @@
+node_modules
+backend/node_modules
+backend/ml/venv
+backend/uploads
+backend/dist
+dist
+.git
+*.log
+tests

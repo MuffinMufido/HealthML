@@ -4,6 +4,7 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import datasetRoutes from './routes/dataset';
+import mlRoutes from './routes/ml';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -21,6 +22,8 @@ if (!fs.existsSync(uploadsDir)) {
 
 // Routes
 app.use('/api/dataset', datasetRoutes);
+app.use('/api/ml', mlRoutes);
+app.use('/api', mlRoutes); // spec alias: POST /api/generate-certificate
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'ML Tool Backend is running' });

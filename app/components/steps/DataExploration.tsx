@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 
 export function DataExploration() {
-  const { datasetId, setDatasetId, dataset, setDataset, columns, setColumns, dataLoaded, setDataLoaded, goToStep, setSchemaOK } = useML();
+  const { datasetId, setDatasetId, dataset, setDataset, columns, setColumns, dataLoaded, setDataLoaded, goToStep, setSchemaOK, setTargetColumn } = useML();
   const [view, setView] = useState<"table" | "charts">("charts");
   const [tablePage, setTablePage] = useState(0);
   const pageSize = 10;
@@ -127,7 +127,7 @@ export function DataExploration() {
     formData.append('file', file);
 
     try {
-      const response = await fetch('http://localhost:3001/api/dataset/upload', {
+      const response = await fetch('/api/dataset/upload', {
         method: 'POST',
         body: formData,
       });
@@ -702,7 +702,7 @@ export function DataExploration() {
                       return;
                     }
                     try {
-                      const response = await fetch(`http://localhost:3001/api/dataset/${datasetId}/map-columns`, {
+                      const response = await fetch(`/api/dataset/${datasetId}/map-columns`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ mappedColumns: mapperState, targetColumn: validatedTargetColumn }),
@@ -710,6 +710,7 @@ export function DataExploration() {
                       if (!response.ok) throw new Error("Failed to save mapping");
 
                       setSchemaOK(true);
+                      setTargetColumn(validatedTargetColumn);
                       setValidationMsg({ type: "success", text: "Saved! Step 3 is now unlocked." });
                       setIsMapperOpen(false);
                     } catch (e: any) {

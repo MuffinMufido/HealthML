@@ -37,6 +37,7 @@
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.36.0",
     "input-otp": "^1.4.2",
+    "jspdf": "^4.2.1",
     "lucide-react": "^0.576.0",
     "papaparse": "^5.5.3",
     "react": "^19.2.4",
@@ -53,7 +54,8 @@
     "zod": "^4.3.6"
   },
   "scripts": {
-    "dev": "vite"
+    "dev": "vite",
+    "build": "vite build"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.1",
