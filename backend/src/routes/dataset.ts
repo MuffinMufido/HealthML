@@ -10,6 +10,12 @@ const router = Router();
 const ML_HOST = process.env.ML_HOST || 'localhost';
 const ML_PORT = 8000;
 
+/**
+ * Sends a POST request with a JSON body to the ML service and returns the parsed response.
+ * @param mlPath - URL path on the ML service, e.g. `/train`
+ * @param body - Request payload to JSON-encode
+ * @returns Parsed JSON response body
+ */
 function postToML(mlPath: string, body: any): Promise<any> {
   return new Promise((resolve, reject) => {
     const data = JSON.stringify(body);
@@ -73,6 +79,11 @@ const upload = multer({
 
 
 
+/**
+ * Express handler for model training requests.
+ * Validates dataset and targetColumn, then proxies the request to the ML service.
+ * Used for both `POST /train` and `POST /:id/train`.
+ */
 const handleTrainRequest = async (req: any, res: any) => {
   const { dataset, targetColumn, modelType, params, trainSplit } = req.body || {};
 

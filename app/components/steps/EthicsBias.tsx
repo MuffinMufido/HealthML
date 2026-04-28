@@ -30,6 +30,14 @@ const checklistItems = [
   { id: 8, text: "Clinical validation completed", sub: "Model tested in real clinical environment with supervision before full deployment", checked: false },
 ];
 
+/**
+ * Step 7 — Ethics & Bias.
+ * Fetches subgroup fairness metrics from the ML service and displays a demographic
+ * performance table, training data representation vs. real population, and an interactive
+ * EU AI Act compliance checklist. Also provides a "Download Summary Certificate" button
+ * that generates a PDF via the backend.
+ * Requires a trained model (redirects to Step 4 if not trained).
+ */
 export function EthicsBias() {
   const { trained, latestTrainResult, goToStep, specialty } = useML();
   const [checklist, setChecklist] = useState(checklistItems);
@@ -39,6 +47,10 @@ export function EthicsBias() {
 
   const [certLoading, setCertLoading] = useState(false);
 
+  /**
+   * Requests a PDF summary certificate from the backend and triggers a browser download.
+   * Bundles current train result metrics, fairness data, and checklist state into the request body.
+   */
   const handleDownloadCertificate = async () => {
     const r = latestTrainResult;
     if (!r) return;
@@ -112,6 +124,10 @@ export function EthicsBias() {
     );
   }
 
+  /**
+   * Toggles the checked state of an EU AI Act checklist item.
+   * @param id - The numeric id of the checklist item to toggle
+   */
   const toggleCheck = (id: number) => {
     setChecklist(checklist.map((item) => item.id === id ? { ...item, checked: !item.checked } : item));
   };

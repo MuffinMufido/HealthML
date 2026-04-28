@@ -11,6 +11,12 @@ const modelNames: Record<ModelType, string> = {
   naiveBayes: "Naive Bayes",
 };
 
+/**
+ * Step 5 — Results.
+ * Allows selecting and comparing all 6 model types with per-model parameter controls.
+ * Triggers training via the backend and displays performance metrics, an ROC curve,
+ * a confusion matrix, and a model comparison table. Supports auto-retrain on parameter change.
+ */
 export function Results() {
   const {
     modelConfig,
@@ -51,6 +57,10 @@ export function Results() {
     return modelConfig.params || {};
   }, [activeTab, knnK, svmC, rfTrees, dtDepth, logRegIterations, nbVarSmoothing, modelConfig.params]);
 
+  /**
+   * Submits training request to the backend for the active tab's model type and parameters.
+   * Stores the result in context and updates the comparison table.
+   */
   const handleTrain = async () => {
     setIsTraining(true);
     setErrorMsg("");
@@ -101,6 +111,12 @@ export function Results() {
     return () => clearTimeout(timer);
   }, [activeTab, knnK, svmC, rfTrees, dtDepth, logRegIterations, nbVarSmoothing, autoRetrain]);
 
+  /**
+   * Returns a Tailwind text colour class based on whether a metric value meets green/amber thresholds.
+   * @param key - Metric name matching a key in `latestTrainResult.thresholds`
+   * @param value - The numeric metric value (0–1)
+   * @returns Tailwind class string: `text-green-700`, `text-amber-700`, or `text-red-700`
+   */
   const metricClass = (key: keyof NonNullable<typeof latestTrainResult>["metrics"], value: number) => {
     const t = latestTrainResult?.thresholds?.[key];
     if (!t) return "text-slate-700";
@@ -109,6 +125,11 @@ export function Results() {
     return "text-red-700";
   };
 
+  /**
+   * Returns a plain-language JSX description of the given model type for display in the UI.
+   * @param type - The model type identifier
+   * @returns JSX span element with bolded model name and description
+   */
   const getModelDescription = (type: ModelType) => {
     switch (type) {
       case "knn": return <span><b>K-Nearest Neighbors (KNN)</b> — Finds the <b>K most similar past patients</b> and predicts based on their outcomes. Like asking: "What happened to the 5 patients most similar to this one?" Simple and easy to understand.</span>;

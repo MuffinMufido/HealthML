@@ -6,6 +6,11 @@ const router = Router();
 const ML_HOST = process.env.ML_HOST || 'localhost';
 const ML_PORT = 8000;
 
+/**
+ * Sends a GET request to the ML service and returns the parsed JSON response.
+ * @param path - URL path including query string, e.g. `/explain?modelId=xyz`
+ * @returns Parsed JSON response body
+ */
 function getFromML(path: string): Promise<any> {
   return new Promise((resolve, reject) => {
     const req = http.request(
@@ -32,6 +37,13 @@ function getFromML(path: string): Promise<any> {
   });
 }
 
+/**
+ * Sends a POST request to the ML service and returns the raw binary response buffer.
+ * Used for binary responses such as generated PDF certificates.
+ * @param path - URL path on the ML service, e.g. `/generate-certificate`
+ * @param body - Request payload to JSON-encode
+ * @returns Object containing the raw response buffer and response headers
+ */
 function postToMLBinary(path: string, body: any): Promise<{ data: Buffer; headers: http.IncomingMessage['headers'] }> {
   return new Promise((resolve, reject) => {
     const bodyStr = JSON.stringify(body);

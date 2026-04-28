@@ -114,6 +114,12 @@ const models: {
     },
   ];
 
+/**
+ * Step 4 — Model & Parameters.
+ * Lets the user select one of 6 model types (LR, DT, RF, SVM, KNN, NB) and tune hyperparameters
+ * via sliders. Provides an interactive model visualisation modal and a train button that
+ * calls the backend, then navigates to the Results step on success.
+ */
 export function ModelParameters() {
   const {
     modelConfig,
@@ -136,6 +142,10 @@ export function ModelParameters() {
 
   const selectedModel = models.find((m) => m.id === modelConfig.type)!;
 
+  /**
+   * Sends the current model config and dataset to the backend training endpoint.
+   * On success, stores the result in context and navigates to Step 5 (Results).
+   */
   const handleTrain = async () => {
     setTraining(true);
     setProgress(15);
@@ -175,6 +185,12 @@ export function ModelParameters() {
     }
   };
 
+  /**
+   * Renders an SVG-based educational visualisation for the currently selected model type.
+   * Supports: KNN (nearest-neighbour scatter), SVM (decision boundary), Decision Tree (flowchart),
+   * Random Forest (voting bars), Logistic Regression (sigmoid curve), Naive Bayes (bell curves).
+   * @returns JSX element containing the model visualisation, or a fallback message
+   */
   const renderVisualization = () => {
     switch (modelConfig.type) {
       case "knn": {

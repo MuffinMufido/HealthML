@@ -101,6 +101,13 @@ const SPECIALTY_SENSE: Record<string, { expected: string; context: string }> = {
   },
 };
 
+/**
+ * Step 6 — Explainability.
+ * Fetches SHAP-style feature importance and per-patient ablation explanations from the ML service.
+ * Displays global feature importance bars, a clinical sense-check for the top feature,
+ * and a per-patient waterfall chart for selected test patients.
+ * Requires a trained model (redirects to Step 4 if not trained).
+ */
 export function Explainability() {
   const { trained, latestTrainResult, goToStep, specialty } = useML();
   const [explainData, setExplainData] = useState<ExplainData | null>(null);

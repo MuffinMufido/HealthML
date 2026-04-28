@@ -52,6 +52,11 @@ interface StepLayoutProps {
   children: React.ReactNode;
 }
 
+/**
+ * Persistent shell layout wrapping all pipeline steps.
+ * Renders the top bar, step navigation, access warning banner, main content area,
+ * footer nav buttons, and the ML glossary modal.
+ */
 export function StepLayout({ children }: StepLayoutProps) {
   const { currentStep, goToStep, accessWarning, clearAccessWarning } = useML();
   const [glossaryOpen, setGlossaryOpen] = useState(false);
