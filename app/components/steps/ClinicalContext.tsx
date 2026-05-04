@@ -223,6 +223,12 @@ const specialties: {
     }
   ];
 
+/**
+ * Step 1 — Clinical Context.
+ * Renders a grid of 20 medical specialty cards. On selection, shows a detail panel
+ * with the clinical problem, dataset description, and pipeline overview table.
+ * Prompts a reset confirmation dialog when switching specialty mid-pipeline.
+ */
 export function ClinicalContext() {
   const { specialty, changeSpecialty, goToStep, resetConfirmOpen, pendingSpecialty, confirmResetAndSwitch, cancelResetAndSwitch } = useML();
   const selected = specialties.find((s) => s.id === specialty);

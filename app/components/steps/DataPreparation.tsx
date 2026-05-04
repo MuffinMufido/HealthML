@@ -2,8 +2,14 @@ import React, { useState } from "react";
 import { useML } from "../MLContext";
 import { ArrowRight, Settings2 } from "lucide-react";
 
+/**
+ * Step 3 — Data Preparation.
+ * Provides controls for train/test split, missing value imputation, normalisation,
+ * and class imbalance handling. On submission, calls the backend `/prepare` endpoint
+ * and displays before/after normalisation and SMOTE visualisations.
+ */
 export function DataPreparation() {
-  const { prepConfig, setPrepConfig, dataset, setDataset, goToStep, datasetId, isPrepared, setIsPrepared } = useML();
+  const { prepConfig, setPrepConfig, dataset, setDataset, goToStep, datasetId, targetColumn, isPrepared, setIsPrepared } = useML();
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [prepStats, setPrepStats] = useState<any>(null);
@@ -20,23 +26,26 @@ export function DataPreparation() {
   const positiveOutcomes = prepStats ? prepStats.imbalance.after.positive : 0;
   const negativeOutcomes = prepStats ? prepStats.imbalance.after.negative : 0;
   
+  /**
+   * Submits current prep settings to the backend `/prepare` endpoint.
+   * Updates the dataset in context with the prepared data and stores prep stats for visualisation.
+   * Enforces a minimum 800 ms processing display for UX clarity.
+   */
   const handlePreparation = async () => {
-      if (!datasetId) {
-          setErrorMsg("Dataset ID missing. Please reload the dataset in Step 2.");
-          return;
-      }
+      const effectiveId = datasetId || "live";
       const startedAt = Date.now();
       setIsProcessing(true);
       setErrorMsg("");
       try {
-          const response = await fetch(`http://localhost:3001/api/dataset/${datasetId}/prepare`, {
+          const response = await fetch(`/api/dataset/${effectiveId}/prepare`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ 
+              body: JSON.stringify({
                   missingValues: prepConfig.missingValues,
                   normalize: prepConfig.normalize,
                   imbalance: prepConfig.imbalance,
                   trainSplit: prepConfig.trainSplit,
+                  targetColumn,
                   dataset: dataset
               })
           });

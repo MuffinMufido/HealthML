@@ -31,7 +31,7 @@ export interface PrepConfig {
   imbalance: "smote" | "weights" | "none";
 }
 
-export type ModelType = "logistic" | "decisionTree" | "randomForest" | "svm" | "knn" | "neuralNet";
+export type ModelType = "logistic" | "decisionTree" | "randomForest" | "svm" | "knn" | "naiveBayes";
 
 export interface ModelConfig {
   type: ModelType;
@@ -40,7 +40,9 @@ export interface ModelConfig {
 
 export interface TrainResult {
   modelType: ModelType;
+  modelId?: string;
   split: { trainPct: number; trainCount: number; testCount: number };
+  featureColumns?: string[];
   confusionMatrix: { tn: number; fp: number; fn: number; tp: number };
   metrics: {
     accuracy: number;
@@ -69,6 +71,8 @@ export interface MLState {
   setDataset: (d: PatientRecord[]) => void;
   datasetId: string | null;
   setDatasetId: (id: string | null) => void;
+  targetColumn: string;
+  setTargetColumn: (col: string) => void;
   schemaOK: boolean;
   setSchemaOK: (b: boolean) => void;
   columns: string[];
@@ -97,6 +101,11 @@ export interface MLState {
 
 const MLContext = createContext<MLState | null>(null);
 
+/**
+ * Custom hook to access the ML pipeline context.
+ * Must be used within an {@link MLProvider}.
+ * @returns Full {@link MLState} object
+ */
 export function useML() {
   const ctx = useContext(MLContext);
   if (!ctx) throw new Error("useML must be used within MLProvider");
@@ -116,11 +125,16 @@ const defaultDataset: PatientRecord[] = Array.from({ length: 120 }, (_, i) => ({
   outcome: Math.random() > 0.62 ? 1 : 0,
 }));
 
+/**
+ * Context provider that manages all shared ML pipeline state for the 7-step workflow.
+ * Wraps the entire application; state is in-memory and reset on page reload.
+ */
 export function MLProvider({ children }: { children: ReactNode }) {
   const [specialty, setSpecialty] = useState<Specialty>("");
   const [pendingSpecialty, setPendingSpecialty] = useState<Specialty | null>(null);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [datasetId, setDatasetId] = useState<string | null>(null);
+  const [targetColumn, setTargetColumn] = useState<string>("outcome");
   const [dataset, setDataset] = useState<PatientRecord[]>(defaultDataset);
   const [columns, setColumns] = useState<string[]>(Object.keys(defaultDataset[0] || {}));
   const [schemaOK, setSchemaOK] = useState(false);
@@ -142,10 +156,13 @@ export function MLProvider({ children }: { children: ReactNode }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [accessWarning, setAccessWarning] = useState<{ msg: string } | null>(null);
 
+  /** Clears the current step-access warning banner. */
   const clearAccessWarning = () => setAccessWarning(null);
 
+  /** Resets all pipeline state to defaults, returning the user to Step 1. */
   const resetPipeline = () => {
     setDatasetId(null);
+    setTargetColumn("outcome");
     setDataset(defaultDataset);
     setColumns(Object.keys(defaultDataset[0] || {}));
     setSchemaOK(false);
@@ -170,6 +187,10 @@ export function MLProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  /**
+   * Inserts or updates a training result in the model comparison table, keyed by model type.
+   * @param result - The training result to store
+   */
   const upsertComparedResult = (result: TrainResult) => {
     setComparedResults((prev) => ({
       ...prev,
@@ -177,12 +198,18 @@ export function MLProvider({ children }: { children: ReactNode }) {
     }));
   };
 
+  /** Clears the latest training result and the model comparison table. */
   const clearModelResults = () => {
     setLatestTrainResult(null);
     setComparedResults({});
     setTrained(false);
   };
 
+  /**
+   * Requests a specialty change. If pipeline progress exists, opens a confirmation dialog
+   * instead of switching immediately.
+   * @param next - The specialty the user wants to switch to
+   */
   const changeSpecialty = (next: Specialty) => {
     if (!next || next === specialty) return;
     const hasProgress =
@@ -200,6 +227,7 @@ export function MLProvider({ children }: { children: ReactNode }) {
     setSpecialty(next);
   };
 
+  /** Confirms the specialty switch: resets the pipeline and sets the pending specialty. */
   const confirmResetAndSwitch = () => {
     if (!pendingSpecialty) {
       setResetConfirmOpen(false);
@@ -210,11 +238,18 @@ export function MLProvider({ children }: { children: ReactNode }) {
     setSpecialty(next);
   };
 
+  /** Cancels a pending specialty switch and closes the confirmation dialog. */
   const cancelResetAndSwitch = () => {
     setPendingSpecialty(null);
     setResetConfirmOpen(false);
   };
 
+  /**
+   * Navigates to a pipeline step, enforcing prerequisites.
+   * Blocks steps ≥2 if schema not validated; blocks steps ≥3 if data not prepared.
+   * Sets an access warning if blocked.
+   * @param targetStep - Zero-based step index (0–6)
+   */
   const goToStep = (targetStep: number) => {
     if (targetStep >= 2 && !schemaOK) {
       setAccessWarning({
@@ -243,6 +278,7 @@ export function MLProvider({ children }: { children: ReactNode }) {
         confirmResetAndSwitch,
         cancelResetAndSwitch,
         datasetId, setDatasetId,
+        targetColumn, setTargetColumn,
         schemaOK, setSchemaOK,
         dataset, setDataset,
         columns, setColumns,

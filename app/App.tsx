@@ -9,6 +9,11 @@ import { Results } from "./components/steps/Results";
 import { Explainability } from "./components/steps/Explainability";
 import { EthicsBias } from "./components/steps/EthicsBias";
 
+/**
+ * Renders the active pipeline step component based on `currentStep` from MLContext.
+ * Steps 0–6 map to: ClinicalContext, DataExploration, DataPreparation,
+ * ModelParameters, Results, Explainability, EthicsBias.
+ */
 function StepRouter() {
   const { currentStep } = useML();
 
@@ -25,6 +30,10 @@ function StepRouter() {
   return steps[currentStep] || steps[0];
 }
 
+/**
+ * Root application component.
+ * Wraps the app in {@link MLProvider} and {@link StepLayout}, then renders {@link StepRouter}.
+ */
 export default function App() {
   return (
     <MLProvider>

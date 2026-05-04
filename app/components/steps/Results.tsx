@@ -8,9 +8,15 @@ const modelNames: Record<ModelType, string> = {
   decisionTree: "Decision Tree",
   randomForest: "Random Forest",
   logistic: "Logistic Reg.",
-  neuralNet: "Neural Network",
+  naiveBayes: "Naive Bayes",
 };
 
+/**
+ * Step 5 — Results.
+ * Allows selecting and comparing all 6 model types with per-model parameter controls.
+ * Triggers training via the backend and displays performance metrics, an ROC curve,
+ * a confusion matrix, and a model comparison table. Supports auto-retrain on parameter change.
+ */
 export function Results() {
   const {
     modelConfig,
@@ -19,6 +25,7 @@ export function Results() {
     goToStep,
     dataset,
     datasetId,
+    targetColumn,
     prepConfig,
     latestTrainResult,
     setLatestTrainResult,
@@ -36,7 +43,7 @@ export function Results() {
   const [rfTrees, setRfTrees] = useState(100);
   const [dtDepth, setDtDepth] = useState(5);
   const [logRegIterations, setLogRegIterations] = useState(500);
-  const [nnLearningRate, setNnLearningRate] = useState(0.01);
+  const [nbVarSmoothing, setNbVarSmoothing] = useState(1);
   const [debouncePending, setDebouncePending] = useState(false);
   const [debounceMeasuredMs, setDebounceMeasuredMs] = useState<number | null>(null);
 
@@ -46,18 +53,19 @@ export function Results() {
     if (activeTab === "randomForest") return { trees: rfTrees };
     if (activeTab === "decisionTree") return { depth: dtDepth };
     if (activeTab === "logistic") return { iterations: logRegIterations };
-    if (activeTab === "neuralNet") return { learningRate: nnLearningRate };
+    if (activeTab === "naiveBayes") return { varSmoothing: nbVarSmoothing };
     return modelConfig.params || {};
-  }, [activeTab, knnK, svmC, rfTrees, dtDepth, logRegIterations, nnLearningRate, modelConfig.params]);
+  }, [activeTab, knnK, svmC, rfTrees, dtDepth, logRegIterations, nbVarSmoothing, modelConfig.params]);
 
+  /**
+   * Submits training request to the backend for the active tab's model type and parameters.
+   * Stores the result in context and updates the comparison table.
+   */
   const handleTrain = async () => {
     setIsTraining(true);
     setErrorMsg("");
     try {
-      const targetColumn = Object.keys(dataset[0] || {}).find((k) =>
-        ["outcome", "target", "class", "label", "diagnosis"].includes(k.toLowerCase())
-      ) || "outcome";
-      const response = await fetch(`http://localhost:3001/api/dataset/${datasetId || "live"}/train`, {
+      const response = await fetch(`/api/dataset/${datasetId || "live"}/train`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -66,6 +74,7 @@ export function Results() {
           modelType: activeTab,
           params: { ...modelConfig.params, ...activeParams },
           trainSplit: prepConfig.trainSplit,
+          imbalance: prepConfig.imbalance,
         }),
       });
       if (!response.ok) {
@@ -100,8 +109,14 @@ export function Results() {
       setDebouncePending(false);
     }, 300);
     return () => clearTimeout(timer);
-  }, [activeTab, knnK, svmC, rfTrees, dtDepth, logRegIterations, nnLearningRate, autoRetrain]);
+  }, [activeTab, knnK, svmC, rfTrees, dtDepth, logRegIterations, nbVarSmoothing, autoRetrain]);
 
+  /**
+   * Returns a Tailwind text colour class based on whether a metric value meets green/amber thresholds.
+   * @param key - Metric name matching a key in `latestTrainResult.thresholds`
+   * @param value - The numeric metric value (0–1)
+   * @returns Tailwind class string: `text-green-700`, `text-amber-700`, or `text-red-700`
+   */
   const metricClass = (key: keyof NonNullable<typeof latestTrainResult>["metrics"], value: number) => {
     const t = latestTrainResult?.thresholds?.[key];
     if (!t) return "text-slate-700";
@@ -110,6 +125,11 @@ export function Results() {
     return "text-red-700";
   };
 
+  /**
+   * Returns a plain-language JSX description of the given model type for display in the UI.
+   * @param type - The model type identifier
+   * @returns JSX span element with bolded model name and description
+   */
   const getModelDescription = (type: ModelType) => {
     switch (type) {
       case "knn": return <span><b>K-Nearest Neighbors (KNN)</b> — Finds the <b>K most similar past patients</b> and predicts based on their outcomes. Like asking: "What happened to the 5 patients most similar to this one?" Simple and easy to understand.</span>;
@@ -117,7 +137,7 @@ export function Results() {
       case "decisionTree": return <span><b>Decision Tree</b> — Learns a series of yes/no questions to split patients into groups. Easy to interpret but prone to over-memorising the training data.</span>;
       case "randomForest": return <span><b>Random Forest</b> — A team of many decision trees. Each tree gets a random subset of data and votes. Highly accurate and robust to noise.</span>;
       case "logistic": return <span><b>Logistic Regression</b> — Calculates a baseline risk and adds/subtracts weight for every measurement. The gold standard for clinical risk scores.</span>;
-      case "neuralNet": return <span><b>Neural Network</b> — A complex web of mathematical functions loosely inspired by the brain. Powerful for complex patterns but hard to interpret ("black box").</span>;
+      case "naiveBayes": return <span><b>Naive Bayes</b> — Uses probability theory to estimate how likely each outcome is, given a patient's measurements. Very fast and transparent. Good for seeing quick, interpretable results.</span>;
     }
   };
 
@@ -232,7 +252,7 @@ export function Results() {
               </div>
             )}
 
-            {["decisionTree", "logistic", "neuralNet"].includes(activeTab) && (
+            {["decisionTree", "logistic", "naiveBayes"].includes(activeTab) && (
               <>
                 {activeTab === "decisionTree" && (
                   <div>
@@ -252,18 +272,19 @@ export function Results() {
                     </div>
                   </div>
                 )}
-                {activeTab === "neuralNet" && (
+                {activeTab === "naiveBayes" && (
                   <div>
-                    <label className="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-3">Learning Rate</label>
+                    <label className="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-3">Variance Smoothing (×10⁻⁹)</label>
                     <div className="flex items-center gap-4 mb-2">
-                      <input type="range" min="0.001" max="0.1" step="0.001" value={nnLearningRate} onChange={(e) => setNnLearningRate(Number(e.target.value))} className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-                      <div className="w-14 text-right font-medium text-slate-700">{nnLearningRate.toFixed(3)}</div>
+                      <input type="range" min="1" max="100" step="1" value={nbVarSmoothing} onChange={(e) => setNbVarSmoothing(Number(e.target.value))} className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                      <div className="w-14 text-right font-medium text-slate-700">{nbVarSmoothing}</div>
                     </div>
+                    <div className="text-[11px] text-slate-500 mt-1">Controls numerical stability. Rarely needs changing — leave at 1 unless you see errors.</div>
                   </div>
                 )}
                 <div className="bg-blue-50 p-4 rounded-lg flex gap-3 text-blue-800 text-[13px] border border-blue-200">
                   <Info className="w-4 h-4 shrink-0 mt-0.5 text-blue-600" />
-                  <p>These controls are now active and included in training requests for all 6 models.</p>
+                  <p>These controls are active and included in training requests for all 6 models.</p>
                 </div>
               </>
             )}
@@ -306,6 +327,50 @@ export function Results() {
                 <span className="text-[13px] text-blue-800 font-medium">Training {modelNames[activeTab]}...</span>
               </div>
             )}
+
+            <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+              <h3 className="text-slate-900 font-medium">Model Comparison</h3>
+              <div className="overflow-x-auto rounded-lg border border-slate-200">
+                <table className="w-full text-left text-[13px]">
+                  <thead className="bg-slate-50 text-slate-600 border-b border-slate-200">
+                    <tr>
+                      <th className="p-3 font-medium">Model</th>
+                      <th className="p-3 font-medium">Accuracy</th>
+                      <th className="p-3 font-medium text-orange-600">Sensitivity ★</th>
+                      <th className="p-3 font-medium">Specificity</th>
+                      <th className="p-3 font-medium">AUC</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {(Object.keys(comparedResults) as ModelType[]).map((modelId) => {
+                      const r = comparedResults[modelId];
+                      if (!r) return null; // Safe check
+                      return (
+                        <tr key={modelId} className={activeTab === modelId ? "bg-blue-50/50" : ""}>
+                          <td className="p-3 font-medium">{modelNames[modelId]}</td>
+                          <td className="p-3">{Math.round(r.metrics.accuracy * 100)}%</td>
+                          <td className={`p-3 font-bold ${r.metrics.sensitivity < 0.5 ? "text-red-600" : "text-orange-600"}`}>
+                            {Math.round(r.metrics.sensitivity * 100)}%
+                          </td>
+                          <td className="p-3">{Math.round(r.metrics.specificity * 100)}%</td>
+                          <td className="p-3">{r.metrics.auc.toFixed(2)}</td>
+                        </tr>
+                      )
+                    })}
+                    {Object.keys(comparedResults).length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="p-6 text-center text-slate-400">Train a model to see comparative results.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div className="text-[11px] text-slate-500 mt-2">
+                <span className="text-orange-600 font-bold pr-1">★ Sensitivity</span>
+                = how many of the truly positive patients did the model catch? This is the most important metric in screening.
+              </div>
+            </div>
+
 
           </div>
         </div>
@@ -444,49 +509,6 @@ export function Results() {
               )}
             </div>
           )}
-
-          <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
-            <h3 className="text-slate-900 font-medium">Model Comparison</h3>
-            <div className="overflow-x-auto rounded-lg border border-slate-200">
-              <table className="w-full text-left text-[13px]">
-                <thead className="bg-slate-50 text-slate-600 border-b border-slate-200">
-                  <tr>
-                    <th className="p-3 font-medium">Model</th>
-                    <th className="p-3 font-medium">Accuracy</th>
-                    <th className="p-3 font-medium text-orange-600">Sensitivity ★</th>
-                    <th className="p-3 font-medium">Specificity</th>
-                    <th className="p-3 font-medium">AUC</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {(Object.keys(comparedResults) as ModelType[]).map((modelId) => {
-                    const r = comparedResults[modelId];
-                    if (!r) return null; // Safe check
-                    return (
-                      <tr key={modelId} className={activeTab === modelId ? "bg-blue-50/50" : ""}>
-                        <td className="p-3 font-medium">{modelNames[modelId]}</td>
-                        <td className="p-3">{Math.round(r.metrics.accuracy * 100)}%</td>
-                        <td className={`p-3 font-bold ${r.metrics.sensitivity < 0.5 ? "text-red-600" : "text-orange-600"}`}>
-                          {Math.round(r.metrics.sensitivity * 100)}%
-                        </td>
-                        <td className="p-3">{Math.round(r.metrics.specificity * 100)}%</td>
-                        <td className="p-3">{r.metrics.auc.toFixed(2)}</td>
-                      </tr>
-                    )
-                  })}
-                  {Object.keys(comparedResults).length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="p-6 text-center text-slate-400">Train a model to see comparative results.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <div className="text-[11px] text-slate-500 mt-2">
-              <span className="text-orange-600 font-bold pr-1">★ Sensitivity</span>
-              = how many of the truly positive patients did the model catch? This is the most important metric in screening.
-            </div>
-          </div>
 
         </div>
       </div>

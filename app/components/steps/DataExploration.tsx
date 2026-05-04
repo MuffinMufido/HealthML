@@ -27,8 +27,14 @@ import {
   BarChart3,
 } from "lucide-react";
 
+/**
+ * Step 2 — Data Exploration.
+ * Allows CSV upload (drag-and-drop or file picker) or loading of the built-in example dataset.
+ * Displays dataset summary stats, class balance, and a column mapper modal for schema validation.
+ * Unlocks Step 3 after the user validates and saves column mapping.
+ */
 export function DataExploration() {
-  const { datasetId, setDatasetId, dataset, setDataset, columns, setColumns, dataLoaded, setDataLoaded, goToStep, setSchemaOK } = useML();
+  const { datasetId, setDatasetId, dataset, setDataset, columns, setColumns, dataLoaded, setDataLoaded, goToStep, setSchemaOK, setTargetColumn } = useML();
   const [view, setView] = useState<"table" | "charts">("charts");
   const [tablePage, setTablePage] = useState(0);
   const pageSize = 10;
@@ -60,6 +66,7 @@ export function DataExploration() {
     }
   }, [columns, selectedTargetColumn]);
 
+  /** Activates the default synthetic dataset (120 rows) and initialises column mapping. */
   const handleLoadExample = () => {
     setDatasetId(`example-dataset-${Date.now()}`);
     setDataLoaded(true);
@@ -82,15 +89,21 @@ export function DataExploration() {
     setValidationMsg(null);
   };
 
+  /** Handles dragover event on the upload drop zone to show the drag-active state. */
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
   };
 
+  /** Resets the drag-active state when the dragged file leaves the drop zone. */
   const handleDragLeave = () => {
     setIsDragging(false);
   };
 
+  /**
+   * Handles file drop on the upload zone and delegates to {@link processFile}.
+   * @param e - Drag event containing the dropped files
+   */
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
@@ -99,12 +112,22 @@ export function DataExploration() {
     }
   };
 
+  /**
+   * Handles file selection via the hidden file input and delegates to {@link processFile}.
+   * @param e - Change event from the file input element
+   */
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       processFile(e.target.files[0]);
     }
   };
 
+  /**
+   * Validates and uploads a CSV file to the backend, then populates dataset state.
+   * Enforces a 50 MB size limit and `.csv` extension check client-side before uploading.
+   * On success, auto-detects initial column type mappings.
+   * @param file - The File object to upload
+   */
   const processFile = async (file: File) => {
     setUploadError("");
     setUploadStatus("");
@@ -127,7 +150,7 @@ export function DataExploration() {
     formData.append('file', file);
 
     try {
-      const response = await fetch('http://localhost:3001/api/dataset/upload', {
+      const response = await fetch('/api/dataset/upload', {
         method: 'POST',
         body: formData,
       });
@@ -702,7 +725,7 @@ export function DataExploration() {
                       return;
                     }
                     try {
-                      const response = await fetch(`http://localhost:3001/api/dataset/${datasetId}/map-columns`, {
+                      const response = await fetch(`/api/dataset/${datasetId}/map-columns`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ mappedColumns: mapperState, targetColumn: validatedTargetColumn }),
@@ -710,6 +733,7 @@ export function DataExploration() {
                       if (!response.ok) throw new Error("Failed to save mapping");
 
                       setSchemaOK(true);
+                      setTargetColumn(validatedTargetColumn);
                       setValidationMsg({ type: "success", text: "Saved! Step 3 is now unlocked." });
                       setIsMapperOpen(false);
                     } catch (e: any) {
