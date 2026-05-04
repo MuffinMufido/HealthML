@@ -287,7 +287,7 @@ test.describe("Sprint 4 — Source code assertions", () => {
       path.join(ROOT, "backend/ml/main.py"),
       "utf-8"
     );
-    expect(src).toContain('return "bad", "⚠ Review Needed"');
+    expect(src).toContain('return "bad", "[!] Review Needed"');
   });
 
   test("backend ml.ts: generate-certificate route exists", () => {

@@ -14,16 +14,39 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: Install Python ML dependencies
+      run: |
+        cd backend/ml
+        python -m venv venv
+        source venv/bin/activate
+        pip install -r requirements.txt
+        
     - name: Use Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20.x'
         
-    - name: Install dependencies
+    - name: Install Node dependencies
       run: npm ci --legacy-peer-deps
+      
+    - name: Install Backend Node dependencies
+      run: |
+        cd backend
+        npm ci
       
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
+      
+    - name: Start all services in background
+      run: |
+        bash start.sh &
+        # Wait for all services to initialize
+        sleep 15
       
     - name: Run Playwright tests
       run: npx playwright test
