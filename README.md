@@ -7,6 +7,7 @@
 | **Live URL** | <http://www.healthml.com.tr/> |
 | **Public IP** | `35.190.207.2` |
 | **Course** | SENG 430 — Software Quality Assurance Laboratory |
+| **Group** | KaraKartallar |
 | **Methodology** | Scrum · 5 Sprints · 10 Weeks |
 
 ---
@@ -260,4 +261,4 @@ curl http://localhost:8000/health
 
 ## License
 
-Educational use only — SENG 430, Çankaya University.
+Educational use only — SENG 430, Çankaya University. Group: KaraKartallar.
