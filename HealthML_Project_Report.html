@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>HealthML — Project Report</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    font-size: 9.5pt;
+    color: #1e293b;
+    background: #fff;
+  }
+
+  /* ── PAGE SETUP ─────────────────────────────────── */
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto;
+    padding: 14mm 16mm 12mm;
+    page-break-after: always;
+  }
+  .page:last-child { page-break-after: auto; }
+
+  @media print {
+    body { background: #fff; }
+    .page { margin: 0; box-shadow: none; }
+  }
+
+  /* ── HEADER ─────────────────────────────────────── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 2.5px solid #0d2340;
+    padding-bottom: 8px;
+    margin-bottom: 14px;
+  }
+  .header-left h1 {
+    font-size: 16pt;
+    font-weight: 700;
+    color: #0d2340;
+    letter-spacing: -0.3px;
+  }
+  .header-left p {
+    font-size: 8pt;
+    color: #64748b;
+    margin-top: 2px;
+  }
+  .header-badge {
+    background: #0d2340;
+    color: #fff;
+    font-size: 7.5pt;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 4px;
+    text-align: right;
+    line-height: 1.6;
+  }
+
+  /* ── SECTION HEADINGS ───────────────────────────── */
+  .section { margin-bottom: 12px; }
+  .section-title {
+    font-size: 8pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #0d2340;
+    background: #e8edf5;
+    padding: 3px 8px;
+    border-left: 3px solid #0d2340;
+    margin-bottom: 7px;
+  }
+
+  /* ── TWO-COLUMN LAYOUT ──────────────────────────── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+  /* ── ARCHITECTURE DIAGRAM ───────────────────────── */
+  .arch {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+  .arch-layer {
+    flex: 1;
+    padding: 8px 10px;
+    text-align: center;
+  }
+  .arch-layer:nth-child(1) { background: #dbeafe; }
+  .arch-layer:nth-child(2) { background: #dcfce7; }
+  .arch-layer:nth-child(3) { background: #fef9c3; }
+  .arch-arrow {
+    display: flex;
+    align-items: center;
+    padding: 0 4px;
+    font-size: 14pt;
+    color: #94a3b8;
+  }
+  .arch-layer .tech { font-size: 7pt; color: #475569; margin-top: 3px; }
+  .arch-layer .name { font-weight: 700; font-size: 9.5pt; }
+  .arch-layer .port { font-size: 7pt; background: rgba(0,0,0,0.07); padding: 1px 5px; border-radius: 3px; display: inline-block; margin-top: 3px; }
+
+  /* ── DECISION CARDS ─────────────────────────────── */
+  .decision-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 8px 10px;
+    background: #f8fafc;
+  }
+  .decision-card .q {
+    font-size: 8pt;
+    font-weight: 600;
+    color: #0d2340;
+    margin-bottom: 3px;
+  }
+  .decision-card .a { font-size: 8pt; color: #475569; line-height: 1.5; }
+  .decision-card .tag {
+    display: inline-block;
+    font-size: 6.5pt;
+    font-weight: 600;
+    background: #0d2340;
+    color: #fff;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-bottom: 4px;
+  }
+
+  /* ── CHALLENGE / LESSON ROWS ────────────────────── */
+  .item-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 6px;
+    align-items: flex-start;
+  }
+  .item-num {
+    min-width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #0d2340;
+    color: #fff;
+    font-size: 7pt;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1px;
+    flex-shrink: 0;
+  }
+  .item-num.green { background: #16a34a; }
+  .item-num.amber { background: #d97706; }
+  .item-body .bold { font-weight: 600; font-size: 8.5pt; }
+  .item-body .sub  { font-size: 8pt; color: #64748b; line-height: 1.45; margin-top: 1px; }
+
+  /* ── METRICS STRIP ──────────────────────────────── */
+  .metrics-strip {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .metric-box {
+    flex: 1;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 7px 8px;
+    text-align: center;
+    background: #f8fafc;
+  }
+  .metric-box .val { font-size: 14pt; font-weight: 700; color: #0d2340; line-height: 1; }
+  .metric-box .lbl { font-size: 7pt; color: #64748b; margin-top: 3px; }
+
+  /* ── TIMELINE ───────────────────────────────────── */
+  .timeline {
+    display: flex;
+    gap: 0;
+    margin-bottom: 10px;
+  }
+  .tl-item {
+    flex: 1;
+    text-align: center;
+    position: relative;
+    padding: 0 4px;
+  }
+  .tl-item::after {
+    content: '→';
+    position: absolute;
+    right: -6px;
+    top: 6px;
+    font-size: 10pt;
+    color: #94a3b8;
+  }
+  .tl-item:last-child::after { display: none; }
+  .tl-dot {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #0d2340;
+    color: #fff;
+    font-size: 7.5pt;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 4px;
+  }
+  .tl-label { font-size: 7pt; color: #475569; line-height: 1.3; }
+  .tl-sub   { font-size: 6.5pt; color: #94a3b8; }
+
+  /* ── FOOTER ─────────────────────────────────────── */
+  .footer {
+    border-top: 1px solid #e2e8f0;
+    padding-top: 6px;
+    margin-top: 10px;
+    font-size: 7pt;
+    color: #94a3b8;
+    display: flex;
+    justify-content: space-between;
+  }
+  .pill {
+    display: inline-block;
+    background: #e0f2fe;
+    color: #0369a1;
+    font-size: 7pt;
+    font-weight: 600;
+    padding: 1px 7px;
+    border-radius: 99px;
+    margin: 1px 2px 1px 0;
+  }
+  hr.divider {
+    border: none;
+    border-top: 1px solid #e2e8f0;
+    margin: 10px 0;
+  }
+  .disclaimer {
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    border-radius: 5px;
+    padding: 6px 10px;
+    font-size: 7.5pt;
+    color: #92400e;
+    margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════ PAGE 1 -->
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <h1>HealthML — ML Clinical Visualizer</h1>
+      <p>SENG 430 · Software Quality Assurance Laboratory · Çankaya University · May 2026</p>
+    </div>
+    <div class="header-badge">
+      Final Project Report<br>
+      <span style="font-weight:400">2-Page Submission</span>
+    </div>
+  </div>
+
+  <!-- KEY NUMBERS -->
+  <div class="metrics-strip">
+    <div class="metric-box"><div class="val">7</div><div class="lbl">Pipeline Steps</div></div>
+    <div class="metric-box"><div class="val">20</div><div class="lbl">Clinical Domains</div></div>
+    <div class="metric-box"><div class="val">6</div><div class="lbl">ML Models</div></div>
+    <div class="metric-box"><div class="val">5</div><div class="lbl">Agile Sprints</div></div>
+    <div class="metric-box"><div class="val">3</div><div class="lbl">Docker Services</div></div>
+    <div class="metric-box"><div class="val">934</div><div class="lbl">ML Service LOC</div></div>
+  </div>
+
+  <!-- ARCHITECTURE -->
+  <div class="section">
+    <div class="section-title">1 · System Architecture</div>
+
+    <div class="arch">
+      <div class="arch-layer">
+        <div class="name">Frontend</div>
+        <div class="tech">React 19 · Vite 8 · TypeScript · TailwindCSS 4</div>
+        <div class="tech">Recharts · Framer Motion · shadcn/ui (48 components)</div>
+        <div class="port">:80 (Nginx) · :5173 (dev)</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-layer">
+        <div class="name">Backend API</div>
+        <div class="tech">Node.js · Express 5 · TypeScript</div>
+        <div class="tech">Multer (CSV upload) · PapaParse · Proxy layer</div>
+        <div class="port">:3001</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-layer">
+        <div class="name">ML Service</div>
+        <div class="tech">Python 3.11 · FastAPI · scikit-learn</div>
+        <div class="tech">imbalanced-learn · pandas · fpdf2</div>
+        <div class="port">:8000</div>
+      </div>
+    </div>
+
+    <p style="font-size:8pt;color:#475569;line-height:1.5;">
+      All three services run in isolated Docker containers orchestrated by Docker Compose and deployed on a GCP Compute Engine instance. Nginx serves the compiled React SPA and reverse-proxies <code>/api/*</code> to the Express backend, which in turn proxies ML-heavy operations (train, explain, fairness, certificate) to the Python FastAPI service. State is managed client-side via a single React Context; the ML service keeps trained models in memory keyed by UUID.
+    </p>
+  </div>
+
+  <!-- SPRINT TIMELINE -->
+  <div class="section">
+    <div class="section-title">2 · Agile Sprint Timeline</div>
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="tl-dot">1</div>
+        <div class="tl-label"><b>Foundation</b></div>
+        <div class="tl-sub">Jira · Figma · Architecture</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot">2</div>
+        <div class="tl-label"><b>MVP</b></div>
+        <div class="tl-sub">Steps 1–3 live demo</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot">3</div>
+        <div class="tl-label"><b>Core ML</b></div>
+        <div class="tl-sub">Steps 4–5, 6 models</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot">4</div>
+        <div class="tl-label"><b>Full Pipeline</b></div>
+        <div class="tl-sub">Steps 6–7, PDF cert</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot">5</div>
+        <div class="tl-label"><b>Polish & Deploy</b></div>
+        <div class="tl-sub">User testing · Docker · GCP</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KEY DECISIONS -->
+  <div class="section">
+    <div class="section-title">3 · Key Design Decisions</div>
+    <div class="two-col">
+
+      <div class="decision-card">
+        <div class="tag">Decision 1</div>
+        <div class="q">Real scikit-learn, not simulated</div>
+        <div class="a">All model training uses actual scikit-learn pipelines. This means metrics are genuine and vary with data and hyperparameters — demonstrating real ML trade-offs to learners rather than hard-coded numbers.</div>
+      </div>
+
+      <div class="decision-card">
+        <div class="tag">Decision 2</div>
+        <div class="q">Microservice split (3 containers)</div>
+        <div class="a">Separating Python ML from the Node.js API allows independent scaling and avoids bundling a Python runtime into the Node image. The backend acts as a thin proxy, keeping each service's responsibility clear.</div>
+      </div>
+
+      <div class="decision-card">
+        <div class="tag">Decision 3</div>
+        <div class="q">Ablation-based explainability</div>
+        <div class="a">Per-patient explanations replace each feature with its training-set mean and measure the change in predicted probability. This works across all 6 model types without requiring SHAP or LIME dependencies.</div>
+      </div>
+
+      <div class="decision-card">
+        <div class="tag">Decision 4</div>
+        <div class="q">SMOTE on training set only</div>
+        <div class="a">Synthetic rows are tagged with <code>__smote__</code> and excluded from the test split, preventing data leakage. This was a critical correctness fix discovered during Sprint 4 QA review.</div>
+      </div>
+
+      <div class="decision-card">
+        <div class="tag">Decision 5</div>
+        <div class="q">10 pp fairness threshold</div>
+        <div class="a">A bias alert is triggered when any subgroup's sensitivity deviates from the overall sensitivity by more than 10 percentage points — calibrated to avoid noise from small datasets while catching clinically meaningful gaps.</div>
+      </div>
+
+      <div class="decision-card">
+        <div class="tag">Decision 6</div>
+        <div class="q">Step access control</div>
+        <div class="a">Users cannot skip steps without completing prerequisites (schema validation before Step 3; data preparation before Step 4). This mirrors real ML workflow constraints and enforces a correct learning sequence.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>HealthML · SENG 430 · Group: MuffinMufido</span>
+    <span>Live: http://www.healthml.com.tr · GitHub: github.com/MuffinMufido/HealthML</span>
+    <span>Page 1 / 2</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════ PAGE 2 -->
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <h1>HealthML — Project Report</h1>
+      <p>Challenges · Solutions · Lessons Learned · Quality Evidence</p>
+    </div>
+    <div class="header-badge">
+      SENG 430 · May 2026<br>
+      <span style="font-weight:400">Page 2 / 2</span>
+    </div>
+  </div>
+
+  <!-- CHALLENGES -->
+  <div class="section">
+    <div class="section-title">4 · Challenges &amp; Solutions</div>
+    <div class="two-col">
+      <div>
+
+        <div class="item-row">
+          <div class="item-num amber">1</div>
+          <div class="item-body">
+            <div class="bold">SMOTE Data Leakage</div>
+            <div class="sub">Initially SMOTE was applied before the train/test split, inflating test-set metrics. Fixed by tagging synthetic rows with a sentinel column and filtering them out of the test split during training.</div>
+          </div>
+        </div>
+
+        <div class="item-row">
+          <div class="item-num amber">2</div>
+          <div class="item-body">
+            <div class="bold">20-Domain Coverage Consistency</div>
+            <div class="sub">Each domain required domain-specific clinical sense-check text, feature label mappings, and fairness thresholds. Managed via explicit mapping tables in the ML service and frontend context.</div>
+          </div>
+        </div>
+
+        <div class="item-row">
+          <div class="item-num amber">3</div>
+          <div class="item-body">
+            <div class="bold">PDF Certificate Unicode Errors</div>
+            <div class="sub">The built-in Helvetica font in fpdf2 does not support Unicode. Resolved by a sanitisation helper (<code>_s()</code>) that replaces em-dashes, arrows, and special characters before rendering.</div>
+          </div>
+        </div>
+
+        <div class="item-row">
+          <div class="item-num amber">4</div>
+          <div class="item-body">
+            <div class="bold">Normalised Age Fairness Bands</div>
+            <div class="sub">After z-score normalisation, raw age bands (18–60, 61–75, 76+) produced empty groups. Fixed by detecting normalised values (max &lt; 10) and switching to quantile-based tertile splits.</div>
+          </div>
+        </div>
+
+      </div>
+      <div>
+
+        <div class="item-row">
+          <div class="item-num amber">5</div>
+          <div class="item-body">
+            <div class="bold">Cross-Container Networking (Docker)</div>
+            <div class="sub">The backend used <code>localhost</code> for the ML service, which fails inside Docker. Resolved by setting <code>ML_HOST=ml</code> via an environment variable in docker-compose, using Docker's internal DNS.</div>
+          </div>
+        </div>
+
+        <div class="item-row">
+          <div class="item-num amber">6</div>
+          <div class="item-body">
+            <div class="bold">SVM / KNN Feature Importance</div>
+            <div class="sub">Tree-based models expose <code>feature_importances_</code>; SVM, KNN, and Naive Bayes do not. Added a permutation importance fallback using the test set, keeping the Explainability step consistent across all 6 models.</div>
+          </div>
+        </div>
+
+        <div class="item-row">
+          <div class="item-num amber">7</div>
+          <div class="item-body">
+            <div class="bold">Training Latency Under 3 Seconds</div>
+            <div class="sub">Random Forest with 300 trees on large datasets exceeded the 3 s target. Capped trees at 300 maximum and added a latency display in the UI so users observe the speed vs. accuracy trade-off directly.</div>
+          </div>
+        </div>
+
+        <div class="item-row">
+          <div class="item-num amber">8</div>
+          <div class="item-body">
+            <div class="bold">Sprint 4 Bias Threshold Regression</div>
+            <div class="sub">Two conflicting thresholds (8 pp and 15 pp) existed simultaneously. Unified to a single &gt;10 pp rule with explicit edge-case tests at exactly 10 pp and 11 pp in the Sprint 4 acceptance suite.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- LESSONS LEARNED -->
+  <div class="section">
+    <div class="section-title">5 · Lessons Learned</div>
+    <div class="three-col">
+
+      <div>
+        <div class="item-row">
+          <div class="item-num green">✓</div>
+          <div class="item-body">
+            <div class="bold">Test early, test real data</div>
+            <div class="sub">Several bugs (SMOTE leakage, Unicode PDF errors) were invisible with synthetic data but appeared immediately with real CSV uploads. User testing in Sprint 5 with real health datasets was invaluable.</div>
+          </div>
+        </div>
+
+        <div class="item-row">
+          <div class="item-num green">✓</div>
+          <div class="item-body">
+            <div class="bold">Gate reviews prevent debt</div>
+            <div class="sub">Enforcing Sprint Gate criteria (live demo, passing acceptance tests) before marking a sprint complete prevented unfinished work from accumulating across sprints.</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="item-row">
+          <div class="item-num green">✓</div>
+          <div class="item-body">
+            <div class="bold">Microservices add complexity</div>
+            <div class="sub">While the 3-service architecture is clean, debugging cross-container issues (networking, environment variables) cost significant time. For a team of this size, a monorepo approach would have been simpler in earlier sprints.</div>
+          </div>
+        </div>
+
+        <div class="item-row">
+          <div class="item-num green">✓</div>
+          <div class="item-body">
+            <div class="bold">Plain language matters</div>
+            <div class="sub">User testing revealed that clinicians ignored metric values until labels were rephrased (e.g. "% of truly positive patients caught"). The ML glossary and plain-language UI copy were added as a direct result.</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="item-row">
+          <div class="item-num green">✓</div>
+          <div class="item-body">
+            <div class="bold">Fairness is not an afterthought</div>
+            <div class="sub">Adding subgroup analysis in Sprint 4 required retrofitting bias data into training outputs already consumed by Step 5. Building fairness hooks from Sprint 2 would have been significantly cheaper.</div>
+          </div>
+        </div>
+
+        <div class="item-row">
+          <div class="item-num green">✓</div>
+          <div class="item-body">
+            <div class="bold">Agile velocity improved</div>
+            <div class="sub">Sprint 1 delivered 3 story points; Sprint 5 delivered 11. Weekly showcases with instructor feedback accelerated decision-making and reduced rework in later sprints.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- QUALITY EVIDENCE -->
+  <div class="section">
+    <div class="section-title">6 · Quality &amp; Delivery Evidence</div>
+    <div class="two-col">
+
+      <div>
+        <div style="font-size:8pt;font-weight:600;color:#0d2340;margin-bottom:5px;">Testing &amp; QA</div>
+        <div class="item-row" style="margin-bottom:4px;">
+          <div style="width:8px;height:8px;border-radius:50%;background:#16a34a;margin-top:4px;flex-shrink:0;"></div>
+          <div class="item-body"><div class="sub"><b>Playwright E2E:</b> Full 7-step pipeline + Sprint 4 acceptance suite (bias threshold, checklist progress, certificate generation)</div></div>
+        </div>
+        <div class="item-row" style="margin-bottom:4px;">
+          <div style="width:8px;height:8px;border-radius:50%;background:#16a34a;margin-top:4px;flex-shrink:0;"></div>
+          <div class="item-body"><div class="sub"><b>User testing:</b> 5 participants (healthcare students), signed consent forms, Sprint 5 report with pass/fail per task</div></div>
+        </div>
+        <div class="item-row" style="margin-bottom:4px;">
+          <div style="width:8px;height:8px;border-radius:50%;background:#16a34a;margin-top:4px;flex-shrink:0;"></div>
+          <div class="item-body"><div class="sub"><b>QA reports:</b> Sprint 3, 4, 5 QA review PDFs with test evidence and corrective actions logged</div></div>
+        </div>
+        <div class="item-row">
+          <div style="width:8px;height:8px;border-radius:50%;background:#16a34a;margin-top:4px;flex-shrink:0;"></div>
+          <div class="item-body"><div class="sub"><b>Lighthouse:</b> Performance &gt;80, Accessibility &gt;90 (screenshot in repo)</div></div>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-size:8pt;font-weight:600;color:#0d2340;margin-bottom:5px;">Technology Tags</div>
+        <div style="line-height:2;">
+          <span class="pill">React 19</span><span class="pill">Vite 8</span><span class="pill">TypeScript</span><span class="pill">TailwindCSS 4</span><span class="pill">shadcn/ui</span><span class="pill">Recharts</span><span class="pill">Framer Motion</span><span class="pill">Express 5</span><span class="pill">FastAPI</span><span class="pill">scikit-learn</span><span class="pill">SMOTE</span><span class="pill">fpdf2</span><span class="pill">Docker</span><span class="pill">Nginx</span><span class="pill">GCP</span><span class="pill">Playwright</span><span class="pill">Jira Scrum</span><span class="pill">Figma</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="disclaimer">
+    ⚠ This application is designed for <strong>educational purposes only</strong>. It must not be used for clinical diagnosis, treatment decisions, or patient care. All AI predictions require review by a qualified healthcare professional.
+  </div>
+
+  <div class="footer">
+    <span>HealthML · SENG 430 · Group: MuffinMufido</span>
+    <span>Live: http://www.healthml.com.tr · GitHub: github.com/MuffinMufido/HealthML</span>
+    <span>Page 2 / 2</span>
+  </div>
+</div>
+
+</body>
+</html>
