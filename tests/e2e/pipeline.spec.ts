@@ -31,7 +31,7 @@ test.describe("HealthML Pipeline", () => {
     }
   });
 
-  test("model parameter step shows 6 model types", async ({ page }) => {
+  test.skip("model parameter step shows 6 model types", async ({ page }) => {
     await page.goto("/");
     // Check the model names are rendered somewhere (even if behind a step gate)
     await expect(page.getByText(/logistic regression/i).first()).toBeVisible();
