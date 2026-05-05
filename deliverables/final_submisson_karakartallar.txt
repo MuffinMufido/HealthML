@@ -1,0 +1,11 @@
+Team: KaraKartallar
+Project: HealthML
+
+1. Live Web Application: http://www.healthml.com.tr/
+2. GitHub Repository (Clean code, README, Docker setup): https://github.com/MuffinMufido/HealthML
+3. GitHub Wiki (Architecture, API docs, Sprint Notes): https://github.com/MuffinMufido/HealthML/wiki
+4. Project Report (2-page): GitHub repomuzda "deliverables/" klasöründedir.
+5. User Testing Evidence (Report + Video): GitHub repomuzda "deliverables/user_testing/" klasöründedir.
+6. Test Reports: GitHub repomuzda ve Wiki'de mevcuttur.
+7. Jira Board Link: https://techmufido.atlassian.net/jira/software/projects/HCML/boards/37
+8. Figma Wireframes Link: https://www.figma.com/community/file/1610750429482770416
