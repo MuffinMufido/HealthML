@@ -23,7 +23,7 @@ from sklearn.inspection import permutation_importance
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import auc as sklearn_auc, roc_curve
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.naive_bayes import GaussianNB
+from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
@@ -132,9 +132,17 @@ def build_model(model_type: str, params: dict, class_weight=None):
         k = max(1, min(25, int(params.get("k", 5))))
         return KNeighborsClassifier(n_neighbors=k)  # KNN has no class_weight
 
-    if model_type == "naiveBayes":
-        var_smoothing = max(1e-12, float(params.get("varSmoothing", 1)) * 1e-9)
-        return GaussianNB(var_smoothing=var_smoothing)  # GaussianNB has no class_weight
+    if model_type == "neuralNetwork":
+        neurons = max(8, min(256, int(params.get("neurons", 64))))
+        lr = max(1e-5, min(0.1, float(params.get("learningRate", 0.001))))
+        max_iter = max(100, int(params.get("iterations", 500)))
+        return MLPClassifier(
+            hidden_layer_sizes=(neurons, neurons),
+            learning_rate_init=lr,
+            max_iter=max_iter,
+            random_state=42,
+            early_stopping=True,
+        )  # MLPClassifier has no class_weight
 
     return RandomForestClassifier(n_estimators=100, max_depth=5, random_state=42, class_weight=class_weight)
 
