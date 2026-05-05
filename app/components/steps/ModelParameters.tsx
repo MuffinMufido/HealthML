@@ -9,7 +9,7 @@ import {
   TreePine,
   Cpu,
   CircleDot,
-  Network,
+  Brain,
   Eye,
 } from "lucide-react";
 
@@ -99,24 +99,26 @@ const models: {
       ],
     },
     {
-      id: "naiveBayes",
-      name: "Naive Bayes",
-      icon: Network,
-      color: "text-red-600",
-      bg: "bg-red-50 border-red-200",
+      id: "neuralNetwork",
+      name: "Neural Network",
+      icon: Brain,
+      color: "text-pink-600",
+      bg: "bg-pink-50 border-pink-200",
       description:
-        "Uses probability theory to estimate how likely each outcome is, given a patient's measurements. Very fast and transparent.",
+        "A multi-layer perceptron that learns complex, non-linear patterns by passing data through layers of interconnected nodes — inspired by the human brain.",
       analogy:
-        "Like asking: 'Given this patient's age and blood pressure, what is the probability of readmission based on past patients?'",
+        "Like a team of specialists who each focus on one signal, then pass their findings to a senior panel that makes the final call.",
       params: [
-        { key: "varSmoothing", label: "Variance Smoothing (×10⁻⁹)", min: 1, max: 100, step: 1, default: 1 },
+        { key: "neurons", label: "Neurons per Hidden Layer", min: 8, max: 256, step: 8, default: 64 },
+        { key: "learningRate", label: "Learning Rate", min: 0.0001, max: 0.1, step: 0.0001, default: 0.001 },
+        { key: "iterations", label: "Max Iterations", min: 100, max: 2000, step: 100, default: 500 },
       ],
     },
   ];
 
 /**
  * Step 4 — Model & Parameters.
- * Lets the user select one of 6 model types (LR, DT, RF, SVM, KNN, NB) and tune hyperparameters
+ * Lets the user select one of 6 model types (LR, DT, RF, SVM, KNN, NN) and tune hyperparameters
  * via sliders. Provides an interactive model visualisation modal and a train button that
  * calls the backend, then navigates to the Results step on success.
  */
@@ -188,7 +190,7 @@ export function ModelParameters() {
   /**
    * Renders an SVG-based educational visualisation for the currently selected model type.
    * Supports: KNN (nearest-neighbour scatter), SVM (decision boundary), Decision Tree (flowchart),
-   * Random Forest (voting bars), Logistic Regression (sigmoid curve), Naive Bayes (bell curves).
+   * Random Forest (voting bars), Logistic Regression (sigmoid curve), Neural Network (layer diagram).
    * @returns JSX element containing the model visualisation, or a fallback message
    */
   const renderVisualization = () => {
@@ -485,34 +487,83 @@ export function ModelParameters() {
           </div>
         );
       }
-      case "naiveBayes": {
+      case "neuralNetwork": {
+        const neurons = modelConfig.params.neurons || 64;
+        const hiddenCount = Math.max(2, Math.min(8, Math.round(neurons / 16)));
+        const inputNodes = ["Age", "EF%", "BP", "Cr", "Na"];
+        const outputNodes = ["Safe", "Risk"];
+
         return (
           <div className="space-y-4">
-            <p className="text-[13px] text-slate-500 mb-2">Naive Bayes calculates the probability of each outcome for each feature value independently, then combines them.</p>
-            <svg className="w-full" viewBox="0 0 300 160" style={{ border: "1px solid #e2e8f0", borderRadius: "12px", background: "#f7f9fb" }}>
-              {/* Axes */}
-              <line x1="40" y1="10" x2="40" y2="140" stroke="#cbd5e1" strokeWidth="1" />
-              <line x1="40" y1="140" x2="280" y2="140" stroke="#cbd5e1" strokeWidth="1" />
-              <text x="150" y="155" textAnchor="middle" fill="#64748b" fontSize="8">Measurement value</text>
-              <text x="10" y="80" textAnchor="middle" fill="#64748b" fontSize="8" transform="rotate(-90,10,80)">P(class)</text>
-              {/* Negative class bell */}
-              <path d="M50,135 Q80,135 100,60 Q120,135 150,135" fill="none" stroke="#3b82f6" strokeWidth="2" />
-              <text x="100" y="55" textAnchor="middle" fill="#3b82f6" fontSize="8" fontWeight="bold">Not Readmitted</text>
-              {/* Positive class bell */}
-              <path d="M130,135 Q160,135 190,50 Q220,135 260,135" fill="none" stroke="#ef4444" strokeWidth="2" />
-              <text x="195" y="45" textAnchor="middle" fill="#ef4444" fontSize="8" fontWeight="bold">Readmitted</text>
-              {/* Decision boundary */}
-              <line x1="152" y1="20" x2="152" y2="140" stroke="#64748b" strokeWidth="1" strokeDasharray="3,2" />
-              <text x="157" y="30" fill="#64748b" fontSize="7">Decision boundary</text>
-            </svg>
-            <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-xl mt-3">
-              <span className="text-blue-600 mt-0.5 shrink-0 text-lg">ℹ️</span>
-              <div className="text-[13px] text-blue-900">
-                <span className="font-bold">Clinical meaning:</span> Each bell curve shows the distribution of a measurement for each outcome group. Where the curves overlap is the uncertain zone — the model uses probability to decide which side of the boundary a new patient falls on.
+            <p className="text-[13px] text-slate-500 mb-2">
+              Data flows left → right through layers of nodes. Each connection has a weight the model learns during training.
+              Two hidden layers with <span className="font-semibold text-pink-600">{neurons} neurons</span> each.
+            </p>
+            <div className="w-full bg-slate-50 rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center p-4">
+              <svg viewBox="0 0 300 160" className="w-full" style={{ maxHeight: 220 }}>
+                {/* Input layer */}
+                {inputNodes.map((label, i) => {
+                  const y = 20 + i * 28;
+                  return (
+                    <g key={`in-${i}`}>
+                      <circle cx={30} cy={y} r={10} fill="#3b82f6" />
+                      <text x={30} y={y + 4} textAnchor="middle" fill="white" fontSize="5" fontWeight="bold">{label}</text>
+                    </g>
+                  );
+                })}
+                {/* Hidden layer 1 */}
+                {Array.from({ length: hiddenCount }).map((_, i) => {
+                  const y = 16 + i * (128 / hiddenCount);
+                  return (
+                    <g key={`h1-${i}`}>
+                      {/* connections from input */}
+                      {inputNodes.map((_, ii) => (
+                        <line key={ii} x1={40} y1={20 + ii * 28} x2={110} y2={y} stroke="#cbd5e1" strokeWidth="0.5" />
+                      ))}
+                      <circle cx={110} cy={y} r={8} fill="#ec4899" />
+                    </g>
+                  );
+                })}
+                {/* Hidden layer 2 */}
+                {Array.from({ length: hiddenCount }).map((_, i) => {
+                  const y = 16 + i * (128 / hiddenCount);
+                  return (
+                    <g key={`h2-${i}`}>
+                      {Array.from({ length: hiddenCount }).map((_, ii) => (
+                        <line key={ii} x1={118} y1={16 + ii * (128 / hiddenCount)} x2={190} y2={y} stroke="#cbd5e1" strokeWidth="0.5" />
+                      ))}
+                      <circle cx={190} cy={y} r={8} fill="#a855f7" />
+                    </g>
+                  );
+                })}
+                {/* Output layer */}
+                {outputNodes.map((label, i) => {
+                  const y = 48 + i * 64;
+                  return (
+                    <g key={`out-${i}`}>
+                      {Array.from({ length: hiddenCount }).map((_, ii) => (
+                        <line key={ii} x1={198} y1={16 + ii * (128 / hiddenCount)} x2={260} y2={y} stroke="#cbd5e1" strokeWidth="0.5" />
+                      ))}
+                      <circle cx={260} cy={y} r={12} fill={i === 0 ? "#16a34a" : "#dc2626"} />
+                      <text x={260} y={y + 4} textAnchor="middle" fill="white" fontSize="6" fontWeight="bold">{label}</text>
+                    </g>
+                  );
+                })}
+                {/* Layer labels */}
+                <text x={30} y={155} textAnchor="middle" fill="#64748b" fontSize="6">Input</text>
+                <text x={110} y={155} textAnchor="middle" fill="#64748b" fontSize="6">Hidden 1</text>
+                <text x={190} y={155} textAnchor="middle" fill="#64748b" fontSize="6">Hidden 2</text>
+                <text x={260} y={155} textAnchor="middle" fill="#64748b" fontSize="6">Output</text>
+              </svg>
+            </div>
+            <div className="flex items-start gap-3 p-3 bg-pink-50 border border-pink-200 rounded-xl mt-3">
+              <span className="text-pink-600 mt-0.5 shrink-0 text-lg">🧠</span>
+              <div className="text-[13px] text-pink-900">
+                <span className="font-bold">Clinical meaning:</span> Each hidden neuron detects a pattern (e.g. "high age + low EF"). Deeper layers combine those patterns into higher-level risk signals. More neurons = more patterns detected, but also more risk of overfitting.
               </div>
             </div>
           </div>
-        )
+        );
       }
       default:
         return <div className="p-8 text-center text-slate-500">Visualization not available for this model yet.</div>;
