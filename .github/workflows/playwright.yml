@@ -45,8 +45,25 @@ jobs:
     - name: Start all services in background
       run: |
         bash start.sh &
-        # Wait for all services to initialize
-        sleep 15
+        
+    - name: Wait for services to be ready
+      run: |
+        wait_for() {
+          url="$1"
+          name="$2"
+          for i in $(seq 1 60); do
+            if curl -sf "$url" > /dev/null; then
+              echo "$name is ready"
+              return 0
+            fi
+            sleep 2
+          done
+          echo "$name failed to start within 120s"
+          return 1
+        }
+        wait_for "http://127.0.0.1:8000/health" "ML service"
+        wait_for "http://127.0.0.1:3001/health" "Backend API"
+        wait_for "http://127.0.0.1:5173" "Frontend"
       
     - name: Run Playwright tests
       run: npx playwright test

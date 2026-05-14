@@ -132,6 +132,7 @@ export function ModelParameters() {
     datasetId,
     targetColumn,
     prepConfig,
+    prepSplit,
     latestTrainResult,
     setLatestTrainResult,
     upsertComparedResult,
@@ -163,6 +164,7 @@ export function ModelParameters() {
           params: modelConfig.params,
           trainSplit: prepConfig.trainSplit,
           imbalance: prepConfig.imbalance,
+          preparedTrainCount: prepSplit?.trainCount,
         }),
       });
       setProgress(65);

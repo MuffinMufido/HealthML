@@ -62,6 +62,7 @@ class TrainRequest(BaseModel):
     params: Dict[str, Any] = {}
     trainSplit: float = 80
     imbalance: str = "none"   # smote | weights | none
+    preparedTrainCount: Optional[int] = None
 
 
 class CertChecklistItem(BaseModel):
@@ -341,14 +342,40 @@ def train(req: TrainRequest):
     if target_col not in df.columns:
         raise HTTPException(400, f"Target column '{target_col}' not found.")
 
-    # Segregate SMOTE-synthetic rows — they must stay in training only
     smote_col = "__smote__"
-    if smote_col in df.columns:
-        smote_mask = df[smote_col].fillna(False).astype(bool)
-        df_smote_only = df[smote_mask].drop(columns=[smote_col]).reset_index(drop=True)
-        df = df[~smote_mask].drop(columns=[smote_col]).reset_index(drop=True)
+    use_prepared_split = (
+        req.preparedTrainCount is not None
+        and req.preparedTrainCount > 0
+        and req.preparedTrainCount < len(df)
+    )
+
+    if use_prepared_split:
+        n_train_boundary = int(req.preparedTrainCount)
+        df_train_part = df.iloc[:n_train_boundary].copy()
+        df_test_part = df.iloc[n_train_boundary:].copy()
+
+        if smote_col in df_train_part.columns:
+            smote_mask = df_train_part[smote_col].fillna(False).astype(bool)
+            df_smote_only = df_train_part[smote_mask].drop(columns=[smote_col]).reset_index(drop=True)
+            df_train_real = df_train_part[~smote_mask].drop(columns=[smote_col]).reset_index(drop=True)
+        else:
+            df_smote_only = pd.DataFrame()
+            df_train_real = df_train_part.drop(columns=[smote_col], errors="ignore").reset_index(drop=True)
+
+        df_test_raw = df_test_part.drop(columns=[smote_col], errors="ignore").reset_index(drop=True)
+        df = pd.concat([df_train_real, df_test_raw], ignore_index=True)
+        prepared_train_len = len(df_train_real)
+        prepared_test_len = len(df_test_raw)
     else:
-        df_smote_only = pd.DataFrame()
+        prepared_train_len = None
+        prepared_test_len = None
+        # Segregate SMOTE-synthetic rows — they must stay in training only
+        if smote_col in df.columns:
+            smote_mask = df[smote_col].fillna(False).astype(bool)
+            df_smote_only = df[smote_mask].drop(columns=[smote_col]).reset_index(drop=True)
+            df = df[~smote_mask].drop(columns=[smote_col]).reset_index(drop=True)
+        else:
+            df_smote_only = pd.DataFrame()
 
     id_words = {"id", "uuid", "index", "patient_id", "patientid"}
     feature_cols = [
@@ -374,9 +401,15 @@ def train(req: TrainRequest):
     y = y_raw.values.astype(int)
 
     train_pct = max(0.60, min(0.90, req.trainSplit / 100))
-    n_train = max(1, min(len(X) - 1, round(train_pct * len(X))))
-    idx = np.random.permutation(len(X))
-    train_idx, test_idx = idx[:n_train], idx[n_train:]
+
+    if use_prepared_split and prepared_train_len is not None and prepared_test_len is not None:
+        n_train = prepared_train_len
+        train_idx = np.arange(n_train)
+        test_idx = np.arange(n_train, n_train + prepared_test_len)
+    else:
+        n_train = max(1, min(len(X) - 1, round(train_pct * len(X))))
+        idx = np.random.permutation(len(X))
+        train_idx, test_idx = idx[:n_train], idx[n_train:]
 
     X_train, X_test = X[train_idx], X[test_idx]
     y_train, y_test = y[train_idx], y[test_idx]

@@ -16,7 +16,7 @@
 
 - **7-step guided pipeline** — Clinical Context → Data Exploration → Data Preparation → Model & Parameters → Results → Explainability → Ethics & Bias
 - **20 clinical domains** — Cardiology, Radiology, Nephrology, Oncology, Neurology, Endocrinology, Hepatology, Mental Health, Pulmonology, Haematology, Dermatology, Ophthalmology, Orthopaedics, ICU/Sepsis, Obstetrics, and more
-- **6 ML models** — Logistic Regression, Decision Tree, Random Forest, SVM, KNN, Naive Bayes
+- **6 ML models** — Logistic Regression, Decision Tree, Random Forest, SVM, KNN, Neural Network (MLP)
 - **Real scikit-learn training** — actual model fitting, not simulated
 - **SMOTE** — synthetic minority oversampling on training data only
 - **Ablation-based explainability** — per-patient waterfall explanations

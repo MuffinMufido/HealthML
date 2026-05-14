@@ -85,7 +85,7 @@ const upload = multer({
  * Used for both `POST /train` and `POST /:id/train`.
  */
 const handleTrainRequest = async (req: any, res: any) => {
-  const { dataset, targetColumn, modelType, params, trainSplit } = req.body || {};
+  const { dataset, targetColumn, modelType, params, trainSplit, imbalance, preparedTrainCount } = req.body || {};
 
   if (!Array.isArray(dataset) || dataset.length < 20) {
     return res.status(400).json({ error: 'Dataset must include at least 20 rows for training.' });
@@ -95,7 +95,15 @@ const handleTrainRequest = async (req: any, res: any) => {
   }
 
   try {
-    const result = await postToML('/train', { dataset, targetColumn, modelType, params, trainSplit });
+    const result = await postToML('/train', {
+      dataset,
+      targetColumn,
+      modelType,
+      params,
+      trainSplit,
+      imbalance,
+      preparedTrainCount,
+    });
     res.json(result);
   } catch (e: any) {
     res.status(e.status || 502).json({ error: e.message || 'ML service unavailable. Is the Python ML service running on port 8000?' });

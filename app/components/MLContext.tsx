@@ -58,6 +58,11 @@ export interface TrainResult {
   trainingLatencyMs: number;
 }
 
+export interface PrepSplit {
+  trainCount: number;
+  testCount: number;
+}
+
 export interface MLState {
   specialty: Specialty;
   setSpecialty: (s: Specialty) => void;
@@ -79,6 +84,8 @@ export interface MLState {
   setColumns: (c: string[]) => void;
   isPrepared: boolean;
   setIsPrepared: (b: boolean) => void;
+  prepSplit: PrepSplit | null;
+  setPrepSplit: (s: PrepSplit | null) => void;
   goToStep: (targetStep: number) => void;
   accessWarning: { msg: string } | null;
   clearAccessWarning: () => void;
@@ -139,6 +146,7 @@ export function MLProvider({ children }: { children: ReactNode }) {
   const [columns, setColumns] = useState<string[]>(Object.keys(defaultDataset[0] || {}));
   const [schemaOK, setSchemaOK] = useState(false);
   const [isPrepared, setIsPrepared] = useState(false);
+  const [prepSplit, setPrepSplit] = useState<PrepSplit | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [prepConfig, setPrepConfig] = useState<PrepConfig>({
     missingValues: "median",
@@ -167,6 +175,7 @@ export function MLProvider({ children }: { children: ReactNode }) {
     setColumns(Object.keys(defaultDataset[0] || {}));
     setSchemaOK(false);
     setIsPrepared(false);
+    setPrepSplit(null);
     setDataLoaded(false);
     setTrained(false);
     setCurrentStep(0);
@@ -283,6 +292,7 @@ export function MLProvider({ children }: { children: ReactNode }) {
         dataset, setDataset,
         columns, setColumns,
         isPrepared, setIsPrepared,
+        prepSplit, setPrepSplit,
         goToStep,
         accessWarning,
         clearAccessWarning,

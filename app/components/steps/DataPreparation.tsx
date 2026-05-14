@@ -9,7 +9,7 @@ import { ArrowRight, Settings2 } from "lucide-react";
  * and displays before/after normalisation and SMOTE visualisations.
  */
 export function DataPreparation() {
-  const { prepConfig, setPrepConfig, dataset, setDataset, goToStep, datasetId, targetColumn, isPrepared, setIsPrepared } = useML();
+  const { prepConfig, setPrepConfig, dataset, setDataset, goToStep, datasetId, targetColumn, isPrepared, setIsPrepared, setPrepSplit } = useML();
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [prepStats, setPrepStats] = useState<any>(null);
@@ -64,6 +64,12 @@ export function DataPreparation() {
           const resData = await response.json();
           setDataset(resData.data);
           setPrepStats(resData.stats);
+          if (resData.stats?.split) {
+            setPrepSplit({
+              trainCount: resData.stats.split.trainCount,
+              testCount: resData.stats.split.testCount,
+            });
+          }
           setIsPrepared(true);
       } catch (e: any) {
           setErrorMsg(e.message);
